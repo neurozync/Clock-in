@@ -16,7 +16,7 @@
   />
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    integrity="sha256-20nQCchB9co0qIjZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
 
@@ -49,7 +49,8 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -73,14 +74,13 @@
       height: 100dvh;
       height: 100svh;
       height: -webkit-fill-available;
-      background: var(--bg);
       overflow: hidden;
+      background: var(--bg);
     }
 
     .main {
       position: absolute;
       inset: 0;
-      display: block;
     }
 
     .map-wrap {
@@ -153,10 +153,10 @@
 
     .map-overlay {
       position: absolute;
-      top: calc(112px + var(--safe-top));
       left: calc(12px + var(--safe-left));
       right: calc(12px + var(--safe-right));
-      z-index: 1100;
+      bottom: calc(86px + var(--safe-bottom));
+      z-index: 1180;
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
@@ -176,12 +176,13 @@
       max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
+      box-shadow: var(--shadow);
     }
 
     .sidepanel {
       position: absolute;
-      top: calc(112px + var(--safe-top));
       right: calc(10px + var(--safe-right));
+      top: calc(112px + var(--safe-top));
       width: 320px;
       max-height: calc(100dvh - 300px - var(--safe-top) - var(--safe-bottom));
       z-index: 1200;
@@ -408,10 +409,6 @@
         grid-template-columns: repeat(3, 1fr);
       }
 
-      .map-overlay {
-        top: calc(206px + var(--safe-top));
-      }
-
       .sidepanel {
         top: calc(206px + var(--safe-top));
       }
@@ -457,27 +454,31 @@
         margin-top: 3px;
       }
 
+      /* Bottom stat badges moved above the controls */
       .map-overlay {
-        top: calc(148px + var(--safe-top));
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
+        bottom: calc(110px + var(--safe-bottom));
         gap: 6px;
-        z-index: 1150;
+        z-index: 1240;
       }
 
       .badge {
-        padding: 6px 10px;
+        flex: 1 1 calc(33.333% - 6px);
+        min-width: 0;
+        text-align: center;
+        padding: 7px 8px;
         font-size: 0.72rem;
-        max-width: calc(100% - 16px);
       }
 
+      /* Main status/session/timeline block lives above badges and controls */
       .sidepanel {
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
         width: auto;
         top: auto;
-        bottom: calc(116px + var(--safe-bottom));
-        max-height: 132px;
+        bottom: calc(166px + var(--safe-bottom));
+        max-height: 170px;
         display: grid;
         grid-template-rows: auto auto 1fr;
         gap: 7px;
@@ -522,14 +523,15 @@
       }
 
       button {
-        min-height: 44px;
-        font-size: 0.78rem;
-        padding: 9px 6px;
+        min-height: 48px;
+        font-size: 0.8rem;
+        padding: 10px 8px;
         border-radius: 12px;
       }
 
+      /* Keep Leaflet attribution above the bottom UI */
       .leaflet-control-container .leaflet-bottom.leaflet-right {
-        bottom: calc(108px + var(--safe-bottom));
+        bottom: calc(216px + var(--safe-bottom));
       }
 
       .summary {
@@ -552,7 +554,7 @@
       }
     }
 
-    @media (max-width: 420px) {
+    @media (max-width: 430px) {
       .card {
         padding: 9px 10px;
       }
@@ -573,36 +575,28 @@
         font-size: 0.64rem;
       }
 
-      .map-overlay {
-        top: calc(144px + var(--safe-top));
-      }
-
       .badge {
-        font-size: 0.7rem;
-        padding: 6px 9px;
+        font-size: 0.69rem;
+        padding: 6px 7px;
       }
 
       .sidepanel {
-        bottom: calc(112px + var(--safe-bottom));
-        max-height: 126px;
+        bottom: calc(160px + var(--safe-bottom));
+        max-height: 164px;
       }
 
       .sidepanel .card {
         padding: 8px 10px;
       }
 
-      .controls {
-        gap: 7px;
-      }
-
       button {
-        min-height: 42px;
-        font-size: 0.74rem;
-        padding: 8px 5px;
+        min-height: 46px;
+        font-size: 0.76rem;
+        padding: 9px 6px;
       }
 
       .leaflet-control-container .leaflet-bottom.leaflet-right {
-        bottom: calc(104px + var(--safe-bottom));
+        bottom: calc(210px + var(--safe-bottom));
       }
 
       .summary-grid {
@@ -640,12 +634,13 @@
 
     <section class="main">
       <div class="map-wrap">
+        <div id="map"></div>
+
         <div class="map-overlay">
           <div id="coordsBadge" class="badge">Lat: -- | Lng: --</div>
           <div id="markersBadge" class="badge">Markers: 0</div>
           <div id="pointsBadge" class="badge">Breadcrumbs: 0</div>
         </div>
-        <div id="map"></div>
       </div>
 
       <aside class="sidepanel">
@@ -895,6 +890,8 @@
 
       if (state.currentLatLng) {
         coordsBadge.textContent = `Lat: ${state.currentLatLng.lat.toFixed(6)} | Lng: ${state.currentLatLng.lng.toFixed(6)}`;
+      } else {
+        coordsBadge.textContent = "Lat: -- | Lng: --";
       }
     }
 
