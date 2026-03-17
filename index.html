@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+  />
   <title>Patrol Tracker</title>
 
   <!-- Leaflet -->
@@ -35,53 +38,81 @@
       --radius: 16px;
       --radius-sm: 12px;
       --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+
+      --topbar-height: 110px;
+      --controls-height: 168px;
     }
 
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     html, body {
-      height: 100%;
       margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
+      touch-action: manipulation;
     }
 
     body {
-      display: flex;
-      flex-direction: column;
+      min-height: 100dvh;
+      min-height: 100svh;
+      min-height: -webkit-fill-available;
     }
 
     .app {
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      height: 100%;
-      gap: 10px;
-      padding: 10px;
+      position: relative;
+      width: 100%;
+      height: 100dvh;
+      height: 100svh;
+      height: -webkit-fill-available;
+      background: var(--bg);
+      overflow: hidden;
     }
 
+    /* DESKTOP / LARGE SCREEN */
     .topbar {
+      position: absolute;
+      top: calc(10px + var(--safe-top));
+      left: calc(10px + var(--safe-left));
+      right: calc(10px + var(--safe-right));
+      z-index: 1200;
       display: grid;
       grid-template-columns: 1.35fr 1fr 1fr 1fr;
       gap: 10px;
+      pointer-events: none;
+    }
+
+    .topbar > * {
+      pointer-events: auto;
     }
 
     .card {
-      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      background: linear-gradient(180deg, rgba(23, 28, 34, 0.96), rgba(29, 36, 44, 0.96));
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: 14px;
       min-height: 88px;
+      backdrop-filter: blur(10px);
     }
 
     .card h3,
     .sidepanel h3,
     .summary h3 {
       margin: 0 0 8px 0;
-      font-size: 0.9rem;
+      font-size: 0.84rem;
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -89,73 +120,82 @@
     }
 
     .address-text {
-      font-size: 1rem;
-      line-height: 1.35;
+      font-size: 0.98rem;
+      line-height: 1.3;
       font-weight: 600;
       word-break: break-word;
     }
 
     .metric-value {
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       font-weight: 800;
       letter-spacing: 0.02em;
     }
 
     .metric-sub {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--muted);
       margin-top: 4px;
+      line-height: 1.3;
     }
 
     .main {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 10px;
-      min-height: 0;
+      position: absolute;
+      inset: 0;
+      display: block;
     }
 
     .map-wrap {
-      position: relative;
+      position: absolute;
+      inset: 0;
       overflow: hidden;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
       background: #0b0f14;
     }
 
     #map {
       width: 100%;
       height: 100%;
-      min-height: 420px;
     }
 
     .map-overlay {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 999;
+      top: calc(112px + var(--safe-top));
+      left: calc(12px + var(--safe-left));
+      right: calc(12px + var(--safe-right));
+      z-index: 1100;
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      max-width: calc(100% - 24px);
+      pointer-events: none;
     }
 
     .badge {
-      background: rgba(15, 19, 24, 0.9);
+      background: rgba(15, 19, 24, 0.88);
       border: 1px solid var(--line);
       color: var(--text);
       border-radius: 999px;
       padding: 8px 12px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 700;
       backdrop-filter: blur(8px);
+      white-space: nowrap;
     }
 
     .sidepanel {
+      position: absolute;
+      top: calc(112px + var(--safe-top));
+      right: calc(10px + var(--safe-right));
+      width: 320px;
+      max-height: calc(100dvh - 300px - var(--safe-top) - var(--safe-bottom));
+      z-index: 1200;
       display: grid;
       grid-template-rows: auto auto 1fr;
       gap: 10px;
-      min-height: 0;
+      pointer-events: none;
+    }
+
+    .sidepanel > * {
+      pointer-events: auto;
     }
 
     .status-row {
@@ -182,6 +222,7 @@
       border-radius: 999px;
       background: var(--muted);
       box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
+      flex: 0 0 auto;
     }
 
     .dot.active { background: var(--success); }
@@ -195,15 +236,16 @@
       padding: 8px;
       background: rgba(0,0,0,0.18);
       min-height: 0;
+      -webkit-overflow-scrolling: touch;
     }
 
     .log-item {
       display: grid;
-      grid-template-columns: 86px 1fr;
+      grid-template-columns: 78px 1fr;
       gap: 10px;
       padding: 10px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
-      font-size: 0.92rem;
+      font-size: 0.9rem;
     }
 
     .log-item:last-child {
@@ -217,12 +259,24 @@
 
     .log-text {
       color: var(--text);
+      line-height: 1.35;
+      word-break: break-word;
     }
 
     .controls {
+      position: absolute;
+      left: calc(10px + var(--safe-left));
+      right: calc(10px + var(--safe-right));
+      bottom: calc(10px + var(--safe-bottom));
+      z-index: 1300;
       display: grid;
       grid-template-columns: repeat(6, 1fr);
       gap: 10px;
+      pointer-events: none;
+    }
+
+    .controls > * {
+      pointer-events: auto;
     }
 
     button {
@@ -231,18 +285,25 @@
       background: linear-gradient(180deg, #1a2129, #141a21);
       color: var(--text);
       border-radius: 14px;
-      padding: 14px 12px;
+      padding: 14px 10px;
       font-weight: 800;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       letter-spacing: 0.02em;
       cursor: pointer;
-      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+      transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
       min-height: 56px;
+      width: 100%;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     button:hover {
       transform: translateY(-1px);
       border-color: #415162;
+    }
+
+    button:active {
+      transform: scale(0.99);
     }
 
     button:disabled {
@@ -260,11 +321,15 @@
     .summary {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.68);
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding:
+        calc(18px + var(--safe-top))
+        calc(14px + var(--safe-right))
+        calc(18px + var(--safe-bottom))
+        calc(14px + var(--safe-left));
       z-index: 3000;
     }
 
@@ -280,6 +345,9 @@
       border-radius: 20px;
       box-shadow: var(--shadow);
       padding: 18px;
+      max-height: 90dvh;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .summary-grid {
@@ -307,33 +375,226 @@
     .summary-value {
       font-weight: 800;
       font-size: 1rem;
+      line-height: 1.3;
+      word-break: break-word;
     }
 
     .leaflet-control-attribution {
       font-size: 10px;
     }
 
+    .leaflet-control-container .leaflet-top.leaflet-left {
+      top: calc(var(--safe-top) + 6px);
+      left: calc(var(--safe-left) + 6px);
+    }
+
+    .leaflet-control-container .leaflet-bottom.leaflet-right {
+      right: calc(var(--safe-right) + 4px);
+      bottom: calc(var(--safe-bottom) + 4px);
+    }
+
+    /* TABLET */
     @media (max-width: 1100px) {
       .topbar {
         grid-template-columns: 1fr 1fr;
       }
 
-      .main {
-        grid-template-columns: 1fr;
+      .sidepanel {
+        width: 280px;
+      }
+
+      .controls {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .map-overlay {
+        top: calc(206px + var(--safe-top));
       }
 
       .sidepanel {
-        grid-template-rows: auto auto 260px;
+        top: calc(206px + var(--safe-top));
       }
     }
 
+    /* MOBILE */
     @media (max-width: 700px) {
+      :root {
+        --topbar-height: 128px;
+        --controls-height: 150px;
+      }
+
       .topbar {
+        position: absolute;
+        top: calc(8px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .card {
+        min-height: 58px;
+        padding: 10px 12px;
+        border-radius: 14px;
+      }
+
+      .card h3 {
+        font-size: 0.68rem;
+        margin-bottom: 5px;
+        letter-spacing: 0.05em;
+      }
+
+      .address-text {
+        font-size: 0.78rem;
+        line-height: 1.2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .metric-value {
+        font-size: 0.96rem;
+        line-height: 1.1;
+      }
+
+      .metric-sub {
+        font-size: 0.68rem;
+        margin-top: 3px;
+      }
+
+      .map-overlay {
+        top: calc(144px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        gap: 6px;
+      }
+
+      .badge {
+        padding: 7px 10px;
+        font-size: 0.72rem;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .sidepanel {
+        position: absolute;
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        width: auto;
+        top: auto;
+        bottom: calc(148px + var(--safe-bottom));
+        max-height: 190px;
         grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+        gap: 8px;
+      }
+
+      .sidepanel .card {
+        min-height: auto;
+        padding: 10px 12px;
+      }
+
+      .status-row {
+        gap: 7px;
+      }
+
+      .status-pill {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+      }
+
+      .log {
+        min-height: 0;
+        max-height: 100%;
+      }
+
+      .log-item {
+        grid-template-columns: 64px 1fr;
+        gap: 8px;
+        padding: 8px;
+        font-size: 0.78rem;
+      }
+
+      .controls {
+        position: absolute;
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        bottom: calc(8px + var(--safe-bottom));
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      button {
+        min-height: 52px;
+        font-size: 0.82rem;
+        padding: 12px 8px;
+        border-radius: 12px;
+      }
+
+      .summary {
+        align-items: flex-end;
+        padding:
+          calc(12px + var(--safe-top))
+          calc(10px + var(--safe-right))
+          calc(10px + var(--safe-bottom))
+          calc(10px + var(--safe-left));
+      }
+
+      .summary-box {
+        max-width: none;
+        border-radius: 18px;
+        padding: 16px;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    /* EXTRA SMALL MOBILE */
+    @media (max-width: 420px) {
+      .topbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .card {
+        padding: 9px 10px;
+      }
+
+      .card h3 {
+        font-size: 0.64rem;
+      }
+
+      .address-text {
+        font-size: 0.74rem;
+      }
+
+      .metric-value {
+        font-size: 0.9rem;
+      }
+
+      .metric-sub {
+        font-size: 0.64rem;
+      }
+
+      .map-overlay {
+        top: calc(138px + var(--safe-top));
+      }
+
+      .sidepanel {
+        bottom: calc(142px + var(--safe-bottom));
+        max-height: 175px;
       }
 
       .controls {
         grid-template-columns: repeat(2, 1fr);
+      }
+
+      button {
+        min-height: 50px;
+        font-size: 0.8rem;
       }
 
       .summary-grid {
@@ -447,25 +708,18 @@
   </div>
 
   <script>
-    // =========================
-    // Config
-    // =========================
     const CONFIG = {
       defaultZoom: 18,
       trackingZoom: 19,
       highAccuracy: true,
       timeout: 15000,
       maximumAge: 0,
-
-      // Breadcrumb rules
-      minDistanceMeters: 5,        // record a breadcrumb if moved at least this far
-      minTimeBetweenPointsMs: 3000, // or enough time has passed
-      maxAcceptedAccuracyMeters: 35 // ignore poor GPS points above this
+      minDistanceMeters: 5,
+      minTimeBetweenPointsMs: 3000,
+      maxAcceptedAccuracyMeters: 35,
+      reverseGeocodeThrottleMs: 6000
     };
 
-    // =========================
-    // State
-    // =========================
     const state = {
       map: null,
       userMarker: null,
@@ -488,12 +742,12 @@
       breadcrumbPoints: [],
       markerCount: 0,
       lastRecordedPoint: null,
-      lastRecordedTime: null
+      lastRecordedTime: null,
+
+      lastGeocodeTime: 0,
+      lastGeocodeLatLng: null
     };
 
-    // =========================
-    // DOM
-    // =========================
     const addressText = document.getElementById("addressText");
     const accuracyValue = document.getElementById("accuracyValue");
     const durationValue = document.getElementById("durationValue");
@@ -522,13 +776,11 @@
     const summaryPoints = document.getElementById("summaryPoints");
     const summaryMarkers = document.getElementById("summaryMarkers");
 
-    // =========================
-    // Init Map
-    // =========================
     function initMap() {
       state.map = L.map("map", {
-        zoomControl: true
-      }).setView([33.4484, -112.0740], 13); // fallback: Phoenix
+        zoomControl: true,
+        preferCanvas: true
+      }).setView([33.4484, -112.0740], 13);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 20,
@@ -541,11 +793,20 @@
         opacity: 0.95,
         lineJoin: "round"
       }).addTo(state.map);
+
+      requestAnimationFrame(() => {
+        state.map.invalidateSize();
+      });
+
+      window.addEventListener("resize", () => {
+        setTimeout(() => state.map.invalidateSize(), 150);
+      });
+
+      window.addEventListener("orientationchange", () => {
+        setTimeout(() => state.map.invalidateSize(), 250);
+      });
     }
 
-    // =========================
-    // Utilities
-    // =========================
     function formatTime(date) {
       return new Date(date).toLocaleTimeString([], {
         hour: "2-digit",
@@ -619,6 +880,7 @@
       distanceValue.textContent = formatDistance(state.totalDistanceMeters);
       markersBadge.textContent = `Markers: ${state.markerCount}`;
       pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
+
       sessionInfo.textContent = state.isTracking
         ? `Started ${formatTime(state.patrolStart)}`
         : state.patrolEnd
@@ -652,8 +914,33 @@
       clearInterval(state.durationInterval);
     }
 
+    function shouldReverseGeocode(lat, lng) {
+      const now = Date.now();
+
+      if (!state.lastGeocodeLatLng) {
+        return true;
+      }
+
+      const moved = haversineMeters(
+        state.lastGeocodeLatLng.lat,
+        state.lastGeocodeLatLng.lng,
+        lat,
+        lng
+      );
+
+      return (
+        now - state.lastGeocodeTime >= CONFIG.reverseGeocodeThrottleMs ||
+        moved >= 20
+      );
+    }
+
     async function reverseGeocode(lat, lng) {
+      if (!shouldReverseGeocode(lat, lng)) return;
+
       try {
+        state.lastGeocodeTime = Date.now();
+        state.lastGeocodeLatLng = { lat, lng };
+
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`,
           {
@@ -670,13 +957,10 @@
         state.lastAddress = address;
         addressText.textContent = address;
       } catch (err) {
-        addressText.textContent = "Address lookup unavailable";
+        addressText.textContent = state.lastAddress || "Address lookup unavailable";
       }
     }
 
-    // =========================
-    // Map Updates
-    // =========================
     function updateUserLocation(lat, lng, accuracy, recenter = false) {
       state.currentLatLng = { lat, lng };
       state.currentAccuracy = accuracy;
@@ -707,7 +991,7 @@
       }
 
       if (recenter) {
-        state.map.setView([lat, lng], CONFIG.trackingZoom);
+        state.map.setView([lat, lng], CONFIG.trackingZoom, { animate: true });
       }
 
       updateMetrics();
@@ -727,6 +1011,7 @@
         state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
         state.lastRecordedPoint = { lat, lng };
         state.lastRecordedTime = now;
+        updateMetrics();
         return;
       }
 
@@ -753,15 +1038,12 @@
       state.markerCount += 1;
 
       const marker = L.marker([lat, lng]).addTo(state.map);
-      marker.bindPopup(`<strong>${label}</strong><br>${formatTime(Date.now())}`).openPopup();
+      marker.bindPopup(`<strong>${label}</strong><br>${formatTime(Date.now())}`);
 
       addLog(`${label} at ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
       updateMetrics();
     }
 
-    // =========================
-    // Geolocation
-    // =========================
     function onPositionSuccess(position, recenter = false) {
       const { latitude, longitude, accuracy } = position.coords;
 
@@ -810,9 +1092,6 @@
       }
     }
 
-    // =========================
-    // Patrol Actions
-    // =========================
     function startPatrol() {
       if (!state.currentLatLng) {
         alert("Get your GPS location first.");
@@ -838,7 +1117,11 @@
       startDurationClock();
 
       addLog(`Patrol started at ${state.lastAddress}`);
-      recordBreadcrumb(state.currentLatLng.lat, state.currentLatLng.lng, state.currentAccuracy ?? 999);
+      recordBreadcrumb(
+        state.currentLatLng.lat,
+        state.currentLatLng.lng,
+        state.currentAccuracy ?? 999
+      );
     }
 
     function pausePatrol() {
@@ -889,9 +1172,6 @@
       summaryModal.classList.add("show");
     }
 
-    // =========================
-    // Event Listeners
-    // =========================
     locateBtn.addEventListener("click", locateMe);
     startBtn.addEventListener("click", startPatrol);
     pauseBtn.addEventListener("click", pausePatrol);
@@ -903,29 +1183,11 @@
       summaryModal.classList.remove("show");
     });
 
-    // =========================
-    // Startup
-    // =========================
     initMap();
     updateStatus("ready");
     updateButtons();
     updateMetrics();
     addLog("System ready");
-
-    // Optional: auto-locate on load
-    // locateMe();
-
-    // =========================
-    // Notes
-    // =========================
-    // 1. Run this over HTTPS or localhost, or GPS may not work.
-    // 2. Reverse geocoding uses OpenStreetMap Nominatim.
-    // 3. This version does not save sessions to a backend yet.
-    // 4. If you want, next step is adding:
-    //    - local save/export
-    //    - officer name / property name fields
-    //    - PDF patrol summary
-    //    - supervisor dashboard
   </script>
 </body>
 </html>
