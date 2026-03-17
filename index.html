@@ -170,33 +170,6 @@
       background: #0b0f14;
     }
 
-    .sat-toggle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1200;
-      min-width: 98px;
-      min-height: 40px;
-      padding: 0 14px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(20,27,36,0.96), rgba(24,32,43,0.96));
-      color: var(--text);
-      font-size: 0.74rem;
-      font-weight: 900;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      white-space: nowrap;
-    }
-
-    .sat-toggle.active {
-      border-color: #4a6481;
-      background: linear-gradient(180deg, #1f6feb, #1857bb);
-    }
-
     .status-session-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -366,6 +339,7 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      touch-action: manipulation;
     }
 
     button:active {
@@ -505,11 +479,6 @@
       .summary-grid {
         grid-template-columns: 1fr 1fr;
       }
-
-      .sat-toggle {
-        min-height: 42px;
-        font-size: 0.8rem;
-      }
     }
   </style>
 </head>
@@ -565,7 +534,7 @@
         <div class="timeline-summary-left">
           <h3>Event Timeline</h3>
         </div>
-        <div id="timelineMeta" class="timeline-summary-meta">0 entries</div>
+        <div id="timelineMeta" class="timeline-summary-meta">2 entries</div>
       </summary>
 
       <div class="timeline-content">
@@ -584,7 +553,7 @@
       <button id="startBtn" class="success" disabled>Clock In</button>
       <button id="pauseBtn" class="warn" disabled>Pause</button>
       <button id="resumeBtn" class="neutral" disabled>Resume</button>
-      <button id="markBtn" class="neutral" disabled>Mark Location</button>
+      <button id="markBtn" class="neutral">Mark Location</button>
       <button id="endBtn" class="danger" disabled>End Patrol</button>
     </section>
   </div>
@@ -645,10 +614,6 @@
 
     const state = {
       map: null,
-      streetLayer: null,
-      satelliteLayer: null,
-      usingSatellite: false,
-
       userMarker: null,
       accuracyCircle: null,
       breadcrumbLine: null,
@@ -694,7 +659,6 @@
     const resumeBtn = document.getElementById("resumeBtn");
     const markBtn = document.getElementById("markBtn");
     const endBtn = document.getElementById("endBtn");
-    const satToggleBtn = document.getElementById("satToggleBtn");
 
     const summaryModal = document.getElementById("summaryModal");
     const closeSummaryBtn = document.getElementById("closeSummaryBtn");
@@ -711,23 +675,13 @@
         preferCanvas: true
       }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
 
-      state.streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 20,
-        attribution: "&copy; OpenStreetMap contributors"
-      });
-
-      state.satelliteLayer = L.tileLayer(
+      L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
           maxZoom: 20,
           attribution: "Tiles &copy; Esri"
         }
-      );
-
-      state.satelliteLayer.addTo(state.map);
-state.usingSatellite = true;
-satToggleBtn.textContent = "Street";
-satToggleBtn.classList.add("active");
+      ).addTo(state.map);
 
       state.breadcrumbLine = L.polyline([], {
         color: "#1f6feb",
@@ -747,32 +701,6 @@ satToggleBtn.classList.add("active");
       window.addEventListener("orientationchange", () => {
         setTimeout(() => state.map.invalidateSize(), 300);
       });
-    }
-
-    function toggleSatellite() {
-      if (!state.map) return;
-
-      if (state.usingSatellite) {
-        if (state.map.hasLayer(state.satelliteLayer)) {
-          state.map.removeLayer(state.satelliteLayer);
-        }
-        if (!state.map.hasLayer(state.streetLayer)) {
-          state.streetLayer.addTo(state.map);
-        }
-        state.usingSatellite = false;
-        satToggleBtn.textContent = "Satellite";
-        satToggleBtn.classList.remove("active");
-      } else {
-        if (state.map.hasLayer(state.streetLayer)) {
-          state.map.removeLayer(state.streetLayer);
-        }
-        if (!state.map.hasLayer(state.satelliteLayer)) {
-          state.satelliteLayer.addTo(state.map);
-        }
-        state.usingSatellite = true;
-        satToggleBtn.textContent = "Street";
-        satToggleBtn.classList.add("active");
-      }
     }
 
     function formatTime(date) {
@@ -1147,7 +1075,7 @@ satToggleBtn.classList.add("active");
     resumeBtn.addEventListener("click", resumePatrol);
     markBtn.addEventListener("click", markLocation);
     endBtn.addEventListener("click", endPatrol);
-  
+
     closeSummaryBtn.addEventListener("click", () => {
       summaryModal.classList.remove("show");
     });
@@ -1156,7 +1084,6 @@ satToggleBtn.classList.add("active");
     updateStatus("ready");
     updateButtons();
     updateMetrics();
-    updateTimelineMeta();
     addLog("System ready");
 
     // GPS requires HTTPS or localhost on most phones.
