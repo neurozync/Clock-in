@@ -20,18 +20,18 @@
 
   <style>
     :root {
-      --bg: #0f1318;
-      --panel: rgba(23, 28, 34, 0.96);
-      --panel-2: rgba(29, 36, 44, 0.96);
-      --line: #2a333d;
+      --bg: #0b1118;
+      --panel: rgba(20, 27, 36, 0.96);
+      --panel-2: rgba(24, 32, 43, 0.96);
+      --line: #2a3440;
       --text: #e6edf3;
-      --muted: #93a0ad;
+      --muted: #96a3b3;
       --accent: #1f6feb;
-      --accent-2: #0ea5e9;
+      --accent-2: #20a4f3;
       --success: #16a34a;
-      --warn: #f59e0b;
+      --warn: #d48a12;
       --danger: #dc2626;
-      --shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      --shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
       --radius: 18px;
       --radius-sm: 14px;
       --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -47,7 +47,8 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -76,7 +77,8 @@
       display: grid;
       grid-template-rows:
         auto
-        minmax(220px, 1fr)
+        minmax(170px, 1fr)
+        auto
         auto
         auto
         auto;
@@ -105,20 +107,11 @@
     }
 
     .compact-card {
-      min-height: 86px;
+      min-height: 88px;
       padding: 12px 14px;
     }
 
-    .timeline-card {
-      min-height: 86px;
-      padding: 12px 14px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 6px;
-    }
-
-    .card h3,
-    .summary h3 {
+    .card h3 {
       margin: 0 0 6px 0;
       font-size: 0.72rem;
       font-weight: 800;
@@ -132,19 +125,19 @@
 
     .address-text {
       font-size: 0.78rem;
-      line-height: 1.22;
-      font-weight: 700;
+      line-height: 1.2;
+      font-weight: 800;
+      word-break: break-word;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      word-break: break-word;
     }
 
     .metric-value {
       font-size: 1rem;
-      font-weight: 800;
       line-height: 1.08;
+      font-weight: 900;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -153,14 +146,14 @@
     .metric-sub {
       margin-top: 4px;
       font-size: 0.66rem;
-      line-height: 1.24;
+      line-height: 1.25;
       color: var(--muted);
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
-    .map-wrap {
+    .map-card {
       position: relative;
       min-height: 0;
       overflow: hidden;
@@ -173,8 +166,14 @@
     #map {
       width: 100%;
       height: 100%;
-      min-height: 100%;
+      min-height: 170px;
       background: #0b0f14;
+    }
+
+    .status-session-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
 
     .status-pill {
@@ -182,14 +181,17 @@
       align-items: center;
       gap: 8px;
       min-height: 42px;
+      max-width: 100%;
       padding: 0 16px;
       border-radius: 999px;
       border: 1px solid var(--line);
       background: #131920;
       font-size: 0.78rem;
-      font-weight: 800;
+      font-weight: 900;
       width: fit-content;
-      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .dot {
@@ -205,14 +207,51 @@
     .dot.paused { background: var(--warn); }
     .dot.stopped { background: var(--danger); }
 
-    .bottom-info {
+    .timeline-details {
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .timeline-details summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 14px;
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr auto;
+      align-items: center;
       gap: 8px;
     }
 
+    .timeline-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .timeline-summary-left {
+      min-width: 0;
+    }
+
+    .timeline-summary-left h3 {
+      margin: 0;
+    }
+
+    .timeline-summary-meta {
+      font-size: 0.66rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+    }
+
+    .timeline-content {
+      padding: 0 14px 12px 14px;
+    }
+
     .timeline-log {
-      min-height: 0;
+      max-height: 112px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       border: 1px solid rgba(255,255,255,0.06);
@@ -223,13 +262,14 @@
 
     .log-item {
       display: grid;
-      grid-template-columns: 58px 1fr;
-      gap: 6px;
-      padding: 6px 8px;
+      grid-template-columns: 72px 1fr;
+      gap: 8px;
+      padding: 8px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       line-height: 1.22;
       min-width: 0;
+      align-items: start;
     }
 
     .log-item:last-child {
@@ -238,15 +278,15 @@
 
     .log-time {
       color: var(--accent-2);
-      font-weight: 800;
+      font-weight: 900;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .log-text {
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      word-break: break-word;
     }
 
     .badges-row {
@@ -268,10 +308,10 @@
       background: linear-gradient(180deg, var(--panel), var(--panel-2));
       box-shadow: var(--shadow);
       font-size: 0.72rem;
-      font-weight: 800;
-      white-space: nowrap;
+      font-weight: 900;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .controls {
@@ -289,16 +329,16 @@
       border: 1px solid var(--line);
       color: var(--text);
       font-size: 0.78rem;
-      font-weight: 800;
+      font-weight: 900;
       letter-spacing: 0.01em;
       background: linear-gradient(180deg, #1a2129, #141a21);
       box-shadow: var(--shadow);
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     button:active {
@@ -337,7 +377,7 @@
 
     .summary-box {
       width: 100%;
-      max-width: 540px;
+      max-width: 560px;
       background: linear-gradient(180deg, rgba(23, 28, 34, 0.98), rgba(29, 36, 44, 0.98));
       border: 1px solid var(--line);
       border-radius: 20px;
@@ -346,6 +386,14 @@
       max-height: 90dvh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .summary-box h3 {
+      margin: 0 0 10px 0;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
 
     .summary-grid {
@@ -376,14 +424,14 @@
 
     .summary-value {
       font-size: 0.9rem;
-      font-weight: 800;
+      font-weight: 900;
       line-height: 1.25;
       word-break: break-word;
     }
 
     .leaflet-control-attribution {
       font-size: 10px;
-      background: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.86);
       border-radius: 8px;
       padding: 2px 6px;
       margin: 0 6px 6px 0;
@@ -391,16 +439,15 @@
 
     @media (min-width: 768px) {
       .app {
-        grid-template-rows: auto minmax(280px, 1fr) auto auto auto;
+        grid-template-rows: auto minmax(280px, 1fr) auto auto auto auto;
       }
 
       .top-card {
         min-height: 104px;
       }
 
-      .compact-card,
-      .timeline-card {
-        min-height: 96px;
+      .compact-card {
+        min-height: 92px;
       }
 
       .card h3 {
@@ -412,7 +459,7 @@
       }
 
       .metric-value {
-        font-size: 1.15rem;
+        font-size: 1.12rem;
       }
 
       .metric-sub {
@@ -461,13 +508,11 @@
       </div>
     </section>
 
-    <section class="main">
-      <div class="map-wrap">
-        <div id="map"></div>
-      </div>
+    <section class="map-card">
+      <div id="map"></div>
     </section>
 
-    <section class="bottom-info">
+    <section class="status-session-row">
       <div class="card compact-card">
         <h3>Patrol Status</h3>
         <div id="statusPill" class="status-pill">
@@ -481,12 +526,20 @@
         <h3>Session</h3>
         <div class="metric-sub" id="sessionInfo">No active patrol.</div>
       </div>
+    </section>
 
-      <div class="card timeline-card">
-        <h3>Event Timeline</h3>
+    <details class="timeline-details" open>
+      <summary>
+        <div class="timeline-summary-left">
+          <h3>Event Timeline</h3>
+        </div>
+        <div id="timelineMeta" class="timeline-summary-meta">2 entries</div>
+      </summary>
+
+      <div class="timeline-content">
         <div id="log" class="timeline-log"></div>
       </div>
-    </section>
+    </details>
 
     <section class="badges-row">
       <div id="coordsBadge" class="badge">Lat: -- | Lng: --</div>
@@ -597,6 +650,7 @@
     const statusDot = document.getElementById("statusDot");
     const sessionInfo = document.getElementById("sessionInfo");
     const log = document.getElementById("log");
+    const timelineMeta = document.getElementById("timelineMeta");
 
     const locateBtn = document.getElementById("locateBtn");
     const startBtn = document.getElementById("startBtn");
@@ -684,6 +738,10 @@
       return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
+    function updateTimelineMeta() {
+      timelineMeta.textContent = `${log.children.length} entr${log.children.length === 1 ? "y" : "ies"}`;
+    }
+
     function addLog(message) {
       const item = document.createElement("div");
       item.className = "log-item";
@@ -692,6 +750,7 @@
         <div class="log-text">${message}</div>
       `;
       log.prepend(item);
+      updateTimelineMeta();
     }
 
     function updateStatus(mode) {
