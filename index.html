@@ -8,7 +8,6 @@
   />
   <title>Patrol Tracker</title>
 
-  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -43,9 +42,6 @@
       --safe-right: env(safe-area-inset-right, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-left: env(safe-area-inset-left, 0px);
-
-      --topbar-height: 110px;
-      --controls-height: 168px;
     }
 
     * {
@@ -81,7 +77,6 @@
       overflow: hidden;
     }
 
-    /* DESKTOP / LARGE SCREEN */
     .topbar {
       position: absolute;
       top: calc(10px + var(--safe-top));
@@ -393,7 +388,6 @@
       bottom: calc(var(--safe-bottom) + 4px);
     }
 
-    /* TABLET */
     @media (max-width: 1100px) {
       .topbar {
         grid-template-columns: 1fr 1fr;
@@ -416,13 +410,7 @@
       }
     }
 
-    /* MOBILE */
     @media (max-width: 700px) {
-      :root {
-        --topbar-height: 128px;
-        --controls-height: 150px;
-      }
-
       .topbar {
         position: absolute;
         top: calc(8px + var(--safe-top));
@@ -433,7 +421,7 @@
       }
 
       .card {
-        min-height: 58px;
+        min-height: 54px;
         padding: 10px 12px;
         border-radius: 14px;
       }
@@ -464,7 +452,7 @@
       }
 
       .map-overlay {
-        top: calc(144px + var(--safe-top));
+        top: calc(140px + var(--safe-top));
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
         gap: 6px;
@@ -484,9 +472,9 @@
         right: calc(8px + var(--safe-right));
         width: auto;
         top: auto;
-        bottom: calc(148px + var(--safe-bottom));
-        max-height: 190px;
-        grid-template-columns: 1fr;
+        bottom: calc(122px + var(--safe-bottom));
+        max-height: 150px;
+        display: grid;
         grid-template-rows: auto auto 1fr;
         gap: 8px;
       }
@@ -497,7 +485,7 @@
       }
 
       .status-row {
-        gap: 7px;
+        gap: 6px;
       }
 
       .status-pill {
@@ -508,6 +496,8 @@
       .log {
         min-height: 0;
         max-height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       .log-item {
@@ -527,9 +517,9 @@
       }
 
       button {
-        min-height: 52px;
-        font-size: 0.82rem;
-        padding: 12px 8px;
+        min-height: 48px;
+        font-size: 0.8rem;
+        padding: 10px 8px;
         border-radius: 12px;
       }
 
@@ -553,7 +543,6 @@
       }
     }
 
-    /* EXTRA SMALL MOBILE */
     @media (max-width: 420px) {
       .topbar {
         grid-template-columns: 1fr 1fr;
@@ -580,21 +569,22 @@
       }
 
       .map-overlay {
-        top: calc(138px + var(--safe-top));
+        top: calc(136px + var(--safe-top));
       }
 
       .sidepanel {
-        bottom: calc(142px + var(--safe-bottom));
-        max-height: 175px;
+        bottom: calc(118px + var(--safe-bottom));
+        max-height: 142px;
       }
 
       .controls {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
       }
 
       button {
-        min-height: 50px;
-        font-size: 0.8rem;
+        min-height: 46px;
+        font-size: 0.76rem;
+        padding: 9px 6px;
       }
 
       .summary-grid {
@@ -657,7 +647,7 @@
           <div class="metric-sub" id="sessionInfo">No active patrol.</div>
         </div>
 
-        <div class="card" style="display:grid; grid-template-rows:auto 1fr; min-height:0;">
+        <div class="card" style="display:grid; grid-template-rows:auto 1fr; min-height:0; overflow:hidden;">
           <h3>Event Timeline</h3>
           <div id="log" class="log"></div>
         </div>
