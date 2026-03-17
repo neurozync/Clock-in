@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patrol Tracker</title>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <style>
+    :root {
+      --bg: #0f1318;
+      --panel: #171c22;
+      --panel-2: #1d242c;
+      --line: #2a333d;
+      --text: #e6edf3;
+      --muted: #93a0ad;
+      --accent: #1f6feb;
+      --accent-2: #0ea5e9;
+      --success: #16a34a;
+      --warn: #f59e0b;
+      --danger: #dc2626;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: 100%;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      min-height: 88px;
+    }
+
+    .card h3,
+    .sidepanel h3,
+    .summary h3 {
+      margin: 0 0 8px 0;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .address-text {
+      font-size: 1rem;
+      line-height: 1.35;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .metric-value {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .metric-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .map-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      background: #0b0f14;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 420px;
+    }
+
+    .map-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 999;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      max-width: calc(100% - 24px);
+    }
+
+    .badge {
+      background: rgba(15, 19, 24, 0.9);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      backdrop-filter: blur(8px);
+    }
+
+    .sidepanel {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .status-row {
+      display: grid;
+      gap: 10px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border: 1px solid var(--line);
+      background: #131920;
+      width: fit-content;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--muted);
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
+    }
+
+    .dot.active { background: var(--success); }
+    .dot.paused { background: var(--warn); }
+    .dot.stopped { background: var(--danger); }
+
+    .log {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      background: rgba(0,0,0,0.18);
+      min-height: 0;
+    }
+
+    .log-item {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      gap: 10px;
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.92rem;
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: var(--accent-2);
+      font-weight: 700;
+    }
+
+    .log-text {
+      color: var(--text);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #1a2129, #141a21);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 14px 12px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+      min-height: 56px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #415162;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .primary { background: linear-gradient(180deg, #1f6feb, #1857bb); }
+    .success { background: linear-gradient(180deg, #1f9d55, #167c42); }
+    .warn { background: linear-gradient(180deg, #d48a12, #a76508); }
+    .danger { background: linear-gradient(180deg, #dc2626, #a91d1d); }
+    .neutral { background: linear-gradient(180deg, #2b3440, #212933); }
+
+    .summary {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 3000;
+    }
+
+    .summary.show {
+      display: flex;
+    }
+
+    .summary-box {
+      width: 100%;
+      max-width: 520px;
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .summary-item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.02);
+    }
+
+    .summary-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      font-weight: 800;
+      font-size: 1rem;
+    }
+
+    .leaflet-control-attribution {
+      font-size: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .topbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .sidepanel {
+        grid-template-rows: auto auto 260px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="topbar">
+      <div class="card">
+        <h3>Current Address</h3>
+        <div id="addressText" class="address-text">Waiting for GPS...</div>
+      </div>
+
+      <div class="card">
+        <h3>Accuracy</h3>
+        <div id="accuracyValue" class="metric-value">--</div>
+        <div class="metric-sub">GPS radius</div>
+      </div>
+
+      <div class="card">
+        <h3>Duration</h3>
+        <div id="durationValue" class="metric-value">00:00:00</div>
+        <div class="metric-sub">Active patrol time</div>
+      </div>
+
+      <div class="card">
+        <h3>Distance</h3>
+        <div id="distanceValue" class="metric-value">0.00 mi</div>
+        <div class="metric-sub">Tracked movement</div>
+      </div>
+    </section>
+
+    <section class="main">
+      <div class="map-wrap">
+        <div class="map-overlay">
+          <div id="coordsBadge" class="badge">Lat: -- | Lng: --</div>
+          <div id="markersBadge" class="badge">Markers: 0</div>
+          <div id="pointsBadge" class="badge">Breadcrumbs: 0</div>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <aside class="sidepanel">
+        <div class="card status-row">
+          <h3>Patrol Status</h3>
+          <div id="statusPill" class="status-pill">
+            <span id="statusDot" class="dot"></span>
+            <span id="statusText">Ready</span>
+          </div>
+          <div class="metric-sub">
+            Locate first, then start patrol.
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Session</h3>
+          <div class="metric-sub" id="sessionInfo">No active patrol.</div>
+        </div>
+
+        <div class="card" style="display:grid; grid-template-rows:auto 1fr; min-height:0;">
+          <h3>Event Timeline</h3>
+          <div id="log" class="log"></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="controls">
+      <button id="locateBtn" class="primary">Locate Me</button>
+      <button id="startBtn" class="success" disabled>Clock In</button>
+      <button id="pauseBtn" class="warn" disabled>Pause</button>
+      <button id="resumeBtn" class="neutral" disabled>Resume</button>
+      <button id="markBtn" class="neutral" disabled>Mark Location</button>
+      <button id="endBtn" class="danger" disabled>End Patrol</button>
+    </section>
+  </div>
+
+  <div id="summaryModal" class="summary">
+    <div class="summary-box">
+      <h3>Patrol Summary</h3>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Start Time</div>
+          <div id="summaryStart" class="summary-value">--</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">End Time</div>
+          <div id="summaryEnd" class="summary-value">--</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Duration</div>
+          <div id="summaryDuration" class="summary-value">--</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Distance</div>
+          <div id="summaryDistance" class="summary-value">--</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Breadcrumbs</div>
+          <div id="summaryPoints" class="summary-value">--</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Markers</div>
+          <div id="summaryMarkers" class="summary-value">--</div>
+        </div>
+      </div>
+      <button id="closeSummaryBtn" class="primary" style="width:100%;">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // =========================
+    // Config
+    // =========================
+    const CONFIG = {
+      defaultZoom: 18,
+      trackingZoom: 19,
+      highAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
+
+      // Breadcrumb rules
+      minDistanceMeters: 5,        // record a breadcrumb if moved at least this far
+      minTimeBetweenPointsMs: 3000, // or enough time has passed
+      maxAcceptedAccuracyMeters: 35 // ignore poor GPS points above this
+    };
+
+    // =========================
+    // State
+    // =========================
+    const state = {
+      map: null,
+      userMarker: null,
+      accuracyCircle: null,
+      breadcrumbLine: null,
+      watchId: null,
+
+      currentLatLng: null,
+      currentAccuracy: null,
+      lastAddress: "Waiting for GPS...",
+
+      isTracking: false,
+      isPaused: false,
+
+      patrolStart: null,
+      patrolEnd: null,
+      totalDistanceMeters: 0,
+      durationInterval: null,
+
+      breadcrumbPoints: [],
+      markerCount: 0,
+      lastRecordedPoint: null,
+      lastRecordedTime: null
+    };
+
+    // =========================
+    // DOM
+    // =========================
+    const addressText = document.getElementById("addressText");
+    const accuracyValue = document.getElementById("accuracyValue");
+    const durationValue = document.getElementById("durationValue");
+    const distanceValue = document.getElementById("distanceValue");
+    const coordsBadge = document.getElementById("coordsBadge");
+    const markersBadge = document.getElementById("markersBadge");
+    const pointsBadge = document.getElementById("pointsBadge");
+    const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+    const sessionInfo = document.getElementById("sessionInfo");
+    const log = document.getElementById("log");
+
+    const locateBtn = document.getElementById("locateBtn");
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const markBtn = document.getElementById("markBtn");
+    const endBtn = document.getElementById("endBtn");
+
+    const summaryModal = document.getElementById("summaryModal");
+    const closeSummaryBtn = document.getElementById("closeSummaryBtn");
+    const summaryStart = document.getElementById("summaryStart");
+    const summaryEnd = document.getElementById("summaryEnd");
+    const summaryDuration = document.getElementById("summaryDuration");
+    const summaryDistance = document.getElementById("summaryDistance");
+    const summaryPoints = document.getElementById("summaryPoints");
+    const summaryMarkers = document.getElementById("summaryMarkers");
+
+    // =========================
+    // Init Map
+    // =========================
+    function initMap() {
+      state.map = L.map("map", {
+        zoomControl: true
+      }).setView([33.4484, -112.0740], 13); // fallback: Phoenix
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 20,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(state.map);
+
+      state.breadcrumbLine = L.polyline([], {
+        color: "#1f6feb",
+        weight: 5,
+        opacity: 0.95,
+        lineJoin: "round"
+      }).addTo(state.map);
+    }
+
+    // =========================
+    // Utilities
+    // =========================
+    function formatTime(date) {
+      return new Date(date).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+      const secs = String(totalSeconds % 60).padStart(2, "0");
+      return `${hrs}:${mins}:${secs}`;
+    }
+
+    function metersToMiles(meters) {
+      return meters / 1609.344;
+    }
+
+    function formatDistance(meters) {
+      return `${metersToMiles(meters).toFixed(2)} mi`;
+    }
+
+    function haversineMeters(lat1, lng1, lat2, lng2) {
+      const toRad = deg => (deg * Math.PI) / 180;
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) ** 2;
+
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function addLog(message) {
+      const item = document.createElement("div");
+      item.className = "log-item";
+      item.innerHTML = `
+        <div class="log-time">${formatTime(Date.now())}</div>
+        <div class="log-text">${message}</div>
+      `;
+      log.prepend(item);
+    }
+
+    function updateStatus(mode) {
+      statusDot.className = "dot";
+      if (mode === "active") {
+        statusDot.classList.add("active");
+        statusText.textContent = "Tracking";
+      } else if (mode === "paused") {
+        statusDot.classList.add("paused");
+        statusText.textContent = "Paused";
+      } else if (mode === "stopped") {
+        statusDot.classList.add("stopped");
+        statusText.textContent = "Ended";
+      } else {
+        statusText.textContent = "Ready";
+      }
+    }
+
+    function updateMetrics() {
+      accuracyValue.textContent = state.currentAccuracy != null
+        ? `±${Math.round(state.currentAccuracy)} m`
+        : "--";
+
+      distanceValue.textContent = formatDistance(state.totalDistanceMeters);
+      markersBadge.textContent = `Markers: ${state.markerCount}`;
+      pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
+      sessionInfo.textContent = state.isTracking
+        ? `Started ${formatTime(state.patrolStart)}`
+        : state.patrolEnd
+          ? `Last patrol ended ${formatTime(state.patrolEnd)}`
+          : "No active patrol.";
+
+      if (state.currentLatLng) {
+        coordsBadge.textContent = `Lat: ${state.currentLatLng.lat.toFixed(6)} | Lng: ${state.currentLatLng.lng.toFixed(6)}`;
+      }
+    }
+
+    function updateButtons() {
+      startBtn.disabled = !state.currentLatLng || state.isTracking;
+      pauseBtn.disabled = !state.isTracking || state.isPaused;
+      resumeBtn.disabled = !state.isTracking || !state.isPaused;
+      markBtn.disabled = !state.isTracking;
+      endBtn.disabled = !state.isTracking;
+    }
+
+    function startDurationClock() {
+      clearInterval(state.durationInterval);
+      state.durationInterval = setInterval(() => {
+        if (state.patrolStart && state.isTracking && !state.isPaused) {
+          const elapsed = Date.now() - state.patrolStart;
+          durationValue.textContent = formatDuration(elapsed);
+        }
+      }, 1000);
+    }
+
+    function stopDurationClock() {
+      clearInterval(state.durationInterval);
+    }
+
+    async function reverseGeocode(lat, lng) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`,
+          {
+            headers: {
+              "Accept": "application/json"
+            }
+          }
+        );
+
+        if (!res.ok) throw new Error("Reverse geocode failed");
+
+        const data = await res.json();
+        const address = data.display_name || "Address unavailable";
+        state.lastAddress = address;
+        addressText.textContent = address;
+      } catch (err) {
+        addressText.textContent = "Address lookup unavailable";
+      }
+    }
+
+    // =========================
+    // Map Updates
+    // =========================
+    function updateUserLocation(lat, lng, accuracy, recenter = false) {
+      state.currentLatLng = { lat, lng };
+      state.currentAccuracy = accuracy;
+
+      if (!state.userMarker) {
+        state.userMarker = L.circleMarker([lat, lng], {
+          radius: 8,
+          weight: 2,
+          color: "#ffffff",
+          fillColor: "#1f6feb",
+          fillOpacity: 1
+        }).addTo(state.map);
+      } else {
+        state.userMarker.setLatLng([lat, lng]);
+      }
+
+      if (!state.accuracyCircle) {
+        state.accuracyCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: "#1f6feb",
+          fillColor: "#1f6feb",
+          fillOpacity: 0.12,
+          weight: 1
+        }).addTo(state.map);
+      } else {
+        state.accuracyCircle.setLatLng([lat, lng]);
+        state.accuracyCircle.setRadius(accuracy);
+      }
+
+      if (recenter) {
+        state.map.setView([lat, lng], CONFIG.trackingZoom);
+      }
+
+      updateMetrics();
+      updateButtons();
+      reverseGeocode(lat, lng);
+    }
+
+    function recordBreadcrumb(lat, lng, accuracy) {
+      const now = Date.now();
+
+      if (accuracy > CONFIG.maxAcceptedAccuracyMeters) {
+        return;
+      }
+
+      if (!state.lastRecordedPoint) {
+        state.breadcrumbPoints.push([lat, lng]);
+        state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
+        state.lastRecordedPoint = { lat, lng };
+        state.lastRecordedTime = now;
+        return;
+      }
+
+      const moved = haversineMeters(
+        state.lastRecordedPoint.lat,
+        state.lastRecordedPoint.lng,
+        lat,
+        lng
+      );
+
+      const elapsed = now - state.lastRecordedTime;
+
+      if (moved >= CONFIG.minDistanceMeters || elapsed >= CONFIG.minTimeBetweenPointsMs) {
+        state.breadcrumbPoints.push([lat, lng]);
+        state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
+        state.totalDistanceMeters += moved;
+        state.lastRecordedPoint = { lat, lng };
+        state.lastRecordedTime = now;
+        updateMetrics();
+      }
+    }
+
+    function placeMarker(lat, lng, label = "Location Marked") {
+      state.markerCount += 1;
+
+      const marker = L.marker([lat, lng]).addTo(state.map);
+      marker.bindPopup(`<strong>${label}</strong><br>${formatTime(Date.now())}`).openPopup();
+
+      addLog(`${label} at ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      updateMetrics();
+    }
+
+    // =========================
+    // Geolocation
+    // =========================
+    function onPositionSuccess(position, recenter = false) {
+      const { latitude, longitude, accuracy } = position.coords;
+
+      updateUserLocation(latitude, longitude, accuracy, recenter);
+
+      if (state.isTracking && !state.isPaused) {
+        recordBreadcrumb(latitude, longitude, accuracy);
+      }
+    }
+
+    function onPositionError(error) {
+      console.error("Geolocation error:", error);
+      addLog(`GPS error: ${error.message}`);
+      alert(`GPS error: ${error.message}`);
+    }
+
+    function locateMe() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          onPositionSuccess(position, true);
+          addLog("Initial GPS lock acquired");
+        },
+        onPositionError,
+        {
+          enableHighAccuracy: CONFIG.highAccuracy,
+          timeout: CONFIG.timeout,
+          maximumAge: CONFIG.maximumAge
+        }
+      );
+
+      if (state.watchId == null) {
+        state.watchId = navigator.geolocation.watchPosition(
+          (position) => onPositionSuccess(position, false),
+          onPositionError,
+          {
+            enableHighAccuracy: CONFIG.highAccuracy,
+            timeout: CONFIG.timeout,
+            maximumAge: CONFIG.maximumAge
+          }
+        );
+      }
+    }
+
+    // =========================
+    // Patrol Actions
+    // =========================
+    function startPatrol() {
+      if (!state.currentLatLng) {
+        alert("Get your GPS location first.");
+        return;
+      }
+
+      state.isTracking = true;
+      state.isPaused = false;
+      state.patrolStart = Date.now();
+      state.patrolEnd = null;
+      state.totalDistanceMeters = 0;
+      state.breadcrumbPoints = [];
+      state.markerCount = 0;
+      state.lastRecordedPoint = null;
+      state.lastRecordedTime = null;
+
+      state.breadcrumbLine.setLatLngs([]);
+
+      durationValue.textContent = "00:00:00";
+      updateStatus("active");
+      updateButtons();
+      updateMetrics();
+      startDurationClock();
+
+      addLog(`Patrol started at ${state.lastAddress}`);
+      recordBreadcrumb(state.currentLatLng.lat, state.currentLatLng.lng, state.currentAccuracy ?? 999);
+    }
+
+    function pausePatrol() {
+      if (!state.isTracking) return;
+      state.isPaused = true;
+      updateStatus("paused");
+      updateButtons();
+      addLog("Patrol paused");
+    }
+
+    function resumePatrol() {
+      if (!state.isTracking) return;
+      state.isPaused = false;
+      updateStatus("active");
+      updateButtons();
+      addLog("Patrol resumed");
+    }
+
+    function markLocation() {
+      if (!state.currentLatLng || !state.isTracking) return;
+      placeMarker(state.currentLatLng.lat, state.currentLatLng.lng, "Manual Marker");
+    }
+
+    function endPatrol() {
+      if (!state.isTracking) return;
+
+      state.isTracking = false;
+      state.isPaused = false;
+      state.patrolEnd = Date.now();
+
+      stopDurationClock();
+      updateStatus("stopped");
+      updateButtons();
+      updateMetrics();
+
+      const totalDuration = state.patrolEnd - state.patrolStart;
+      durationValue.textContent = formatDuration(totalDuration);
+
+      addLog("Patrol ended");
+
+      summaryStart.textContent = formatTime(state.patrolStart);
+      summaryEnd.textContent = formatTime(state.patrolEnd);
+      summaryDuration.textContent = formatDuration(totalDuration);
+      summaryDistance.textContent = formatDistance(state.totalDistanceMeters);
+      summaryPoints.textContent = String(state.breadcrumbPoints.length);
+      summaryMarkers.textContent = String(state.markerCount);
+
+      summaryModal.classList.add("show");
+    }
+
+    // =========================
+    // Event Listeners
+    // =========================
+    locateBtn.addEventListener("click", locateMe);
+    startBtn.addEventListener("click", startPatrol);
+    pauseBtn.addEventListener("click", pausePatrol);
+    resumeBtn.addEventListener("click", resumePatrol);
+    markBtn.addEventListener("click", markLocation);
+    endBtn.addEventListener("click", endPatrol);
+
+    closeSummaryBtn.addEventListener("click", () => {
+      summaryModal.classList.remove("show");
+    });
+
+    // =========================
+    // Startup
+    // =========================
+    initMap();
+    updateStatus("ready");
+    updateButtons();
+    updateMetrics();
+    addLog("System ready");
+
+    // Optional: auto-locate on load
+    // locateMe();
+
+    // =========================
+    // Notes
+    // =========================
+    // 1. Run this over HTTPS or localhost, or GPS may not work.
+    // 2. Reverse geocoding uses OpenStreetMap Nominatim.
+    // 3. This version does not save sessions to a backend yet.
+    // 4. If you want, next step is adding:
+    //    - local save/export
+    //    - officer name / property name fields
+    //    - PDF patrol summary
+    //    - supervisor dashboard
+  </script>
+</body>
+</html>
