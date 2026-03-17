@@ -541,7 +541,6 @@
     </section>
 
     <section class="map-card">
-      <button id="satToggleBtn" class="sat-toggle" type="button">Satellite</button>
       <div id="map"></div>
     </section>
 
@@ -725,7 +724,10 @@
         }
       );
 
-      state.streetLayer.addTo(state.map);
+      state.satelliteLayer.addTo(state.map);
+state.usingSatellite = true;
+satToggleBtn.textContent = "Street";
+satToggleBtn.classList.add("active");
 
       state.breadcrumbLine = L.polyline([], {
         color: "#1f6feb",
@@ -1145,8 +1147,7 @@
     resumeBtn.addEventListener("click", resumePatrol);
     markBtn.addEventListener("click", markLocation);
     endBtn.addEventListener("click", endPatrol);
-    satToggleBtn.addEventListener("click", toggleSatellite);
-
+  
     closeSummaryBtn.addEventListener("click", () => {
       summaryModal.classList.remove("show");
     });
