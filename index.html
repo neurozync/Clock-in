@@ -77,6 +77,24 @@
       overflow: hidden;
     }
 
+    .main {
+      position: absolute;
+      inset: 0;
+      display: block;
+    }
+
+    .map-wrap {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #0b0f14;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
     .topbar {
       position: absolute;
       top: calc(10px + var(--safe-top));
@@ -104,7 +122,6 @@
     }
 
     .card h3,
-    .sidepanel h3,
     .summary h3 {
       margin: 0 0 8px 0;
       font-size: 0.84rem;
@@ -134,24 +151,6 @@
       line-height: 1.3;
     }
 
-    .main {
-      position: absolute;
-      inset: 0;
-      display: block;
-    }
-
-    .map-wrap {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-      background: #0b0f14;
-    }
-
-    #map {
-      width: 100%;
-      height: 100%;
-    }
-
     .map-overlay {
       position: absolute;
       top: calc(112px + var(--safe-top));
@@ -174,6 +173,9 @@
       font-weight: 700;
       backdrop-filter: blur(8px);
       white-space: nowrap;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .sidepanel {
@@ -290,6 +292,7 @@
       width: 100%;
       user-select: none;
       -webkit-user-select: none;
+      box-shadow: var(--shadow);
     }
 
     button:hover {
@@ -376,6 +379,10 @@
 
     .leaflet-control-attribution {
       font-size: 10px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 8px;
+      padding: 2px 6px;
+      margin: 0 6px 6px 0;
     }
 
     .leaflet-control-container .leaflet-top.leaflet-left {
@@ -412,7 +419,6 @@
 
     @media (max-width: 700px) {
       .topbar {
-        position: absolute;
         top: calc(8px + var(--safe-top));
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
@@ -421,7 +427,7 @@
       }
 
       .card {
-        min-height: 54px;
+        min-height: 62px;
         padding: 10px 12px;
         border-radius: 14px;
       }
@@ -452,45 +458,44 @@
       }
 
       .map-overlay {
-        top: calc(140px + var(--safe-top));
+        top: calc(148px + var(--safe-top));
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
         gap: 6px;
+        z-index: 1150;
       }
 
       .badge {
-        padding: 7px 10px;
+        padding: 6px 10px;
         font-size: 0.72rem;
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        max-width: calc(100% - 16px);
       }
 
       .sidepanel {
-        position: absolute;
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
         width: auto;
         top: auto;
-        bottom: calc(122px + var(--safe-bottom));
-        max-height: 150px;
+        bottom: calc(116px + var(--safe-bottom));
+        max-height: 132px;
         display: grid;
         grid-template-rows: auto auto 1fr;
-        gap: 8px;
+        gap: 7px;
+        z-index: 1250;
       }
 
       .sidepanel .card {
         min-height: auto;
-        padding: 10px 12px;
+        padding: 9px 12px;
       }
 
       .status-row {
-        gap: 6px;
+        gap: 5px;
       }
 
       .status-pill {
-        padding: 8px 10px;
-        font-size: 0.8rem;
+        padding: 7px 10px;
+        font-size: 0.78rem;
       }
 
       .log {
@@ -498,17 +503,17 @@
         max-height: 100%;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        padding: 6px;
       }
 
       .log-item {
-        grid-template-columns: 64px 1fr;
-        gap: 8px;
-        padding: 8px;
-        font-size: 0.78rem;
+        grid-template-columns: 58px 1fr;
+        gap: 7px;
+        padding: 6px;
+        font-size: 0.72rem;
       }
 
       .controls {
-        position: absolute;
         left: calc(8px + var(--safe-left));
         right: calc(8px + var(--safe-right));
         bottom: calc(8px + var(--safe-bottom));
@@ -517,10 +522,14 @@
       }
 
       button {
-        min-height: 48px;
-        font-size: 0.8rem;
-        padding: 10px 8px;
+        min-height: 44px;
+        font-size: 0.78rem;
+        padding: 9px 6px;
         border-radius: 12px;
+      }
+
+      .leaflet-control-container .leaflet-bottom.leaflet-right {
+        bottom: calc(108px + var(--safe-bottom));
       }
 
       .summary {
@@ -544,10 +553,6 @@
     }
 
     @media (max-width: 420px) {
-      .topbar {
-        grid-template-columns: 1fr 1fr;
-      }
-
       .card {
         padding: 9px 10px;
       }
@@ -569,22 +574,35 @@
       }
 
       .map-overlay {
-        top: calc(136px + var(--safe-top));
+        top: calc(144px + var(--safe-top));
+      }
+
+      .badge {
+        font-size: 0.7rem;
+        padding: 6px 9px;
       }
 
       .sidepanel {
-        bottom: calc(118px + var(--safe-bottom));
-        max-height: 142px;
+        bottom: calc(112px + var(--safe-bottom));
+        max-height: 126px;
+      }
+
+      .sidepanel .card {
+        padding: 8px 10px;
       }
 
       .controls {
-        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
       }
 
       button {
-        min-height: 46px;
-        font-size: 0.76rem;
-        padding: 9px 6px;
+        min-height: 42px;
+        font-size: 0.74rem;
+        padding: 8px 5px;
+      }
+
+      .leaflet-control-container .leaflet-bottom.leaflet-right {
+        bottom: calc(104px + var(--safe-bottom));
       }
 
       .summary-grid {
@@ -637,9 +655,7 @@
             <span id="statusDot" class="dot"></span>
             <span id="statusText">Ready</span>
           </div>
-          <div class="metric-sub">
-            Locate first, then start patrol.
-          </div>
+          <div class="metric-sub">Locate first, then start patrol.</div>
         </div>
 
         <div class="card">
@@ -1099,8 +1115,8 @@
       state.lastRecordedTime = null;
 
       state.breadcrumbLine.setLatLngs([]);
-
       durationValue.textContent = "00:00:00";
+
       updateStatus("active");
       updateButtons();
       updateMetrics();
