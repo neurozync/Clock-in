@@ -253,7 +253,7 @@
       cursor: pointer;
       padding: 12px 14px;
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 8px;
     }
@@ -268,6 +268,19 @@
 
     .timeline-summary-left h3 {
       margin: 0;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .timeline-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      max-width: 100%;
     }
 
     .timeline-summary-meta {
@@ -277,6 +290,101 @@
       overflow: hidden;
       text-overflow: ellipsis;
       text-align: right;
+      flex: 0 0 auto;
+    }
+
+    .alert-select-wrap {
+      position: relative;
+      min-width: 158px;
+      max-width: 210px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #111821;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      flex: 0 1 auto;
+    }
+
+    .alert-select-wrap::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.03);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .alert-select-wrap.secure {
+      border-color: rgba(22, 163, 74, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(22, 163, 74, 0.12),
+        0 0 0 1px rgba(22, 163, 74, 0.08);
+    }
+
+    .alert-select-wrap.secure::before {
+      background: var(--success);
+    }
+
+    .alert-select-wrap.caution {
+      border-color: rgba(212, 138, 18, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(212, 138, 18, 0.12),
+        0 0 0 1px rgba(212, 138, 18, 0.08);
+    }
+
+    .alert-select-wrap.caution::before {
+      background: var(--warn);
+    }
+
+    .alert-select-wrap.priority {
+      border-color: rgba(220, 38, 38, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(220, 38, 38, 0.12),
+        0 0 0 1px rgba(220, 38, 38, 0.08);
+    }
+
+    .alert-select-wrap.priority::before {
+      background: var(--danger);
+    }
+
+    .alert-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      width: 100%;
+      min-height: 36px;
+      padding: 0 34px 0 30px;
+      border: none;
+      outline: none;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      color: var(--text);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .alert-select-wrap::after {
+      content: "▾";
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-52%);
+      color: var(--muted);
+      font-size: 0.72rem;
+      pointer-events: none;
+      z-index: 2;
     }
 
     .timeline-content {
@@ -398,6 +506,23 @@
       margin: 0 6px 6px 0;
     }
 
+    @media (max-width: 420px) {
+      .timeline-details summary {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .timeline-header-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .alert-select-wrap {
+        min-width: 150px;
+        max-width: 190px;
+      }
+    }
+
     @media (min-width: 768px) {
       .app {
         grid-template-rows: auto minmax(280px, 1fr) auto auto auto auto;
@@ -411,7 +536,8 @@
         min-height: 92px;
       }
 
-      .card h3 {
+      .card h3,
+      .timeline-summary-left h3 {
         font-size: 0.78rem;
       }
 
@@ -438,6 +564,11 @@
 
       .session-row {
         font-size: 0.72rem;
+      }
+
+      .alert-select {
+        font-size: 0.72rem;
+        min-height: 38px;
       }
     }
   </style>
@@ -504,7 +635,18 @@
         <div class="timeline-summary-left">
           <h3>Event Timeline</h3>
         </div>
-        <div id="timelineMeta" class="timeline-summary-meta">2 entries</div>
+
+        <div class="timeline-header-right">
+          <div id="timelineMeta" class="timeline-summary-meta">2 entries</div>
+
+          <div id="alertSelectWrap" class="alert-select-wrap secure">
+            <select id="alertLevel" class="alert-select" aria-label="Operational Alert Level">
+              <option value="secure" selected>Secure</option>
+              <option value="caution">Caution</option>
+              <option value="priority">High Priority Issue</option>
+            </select>
+          </div>
+        </div>
       </summary>
 
       <div class="timeline-content">
@@ -584,6 +726,8 @@
     const sessionEnd = document.getElementById("sessionEnd");
     const log = document.getElementById("log");
     const timelineMeta = document.getElementById("timelineMeta");
+    const alertLevel = document.getElementById("alertLevel");
+    const alertSelectWrap = document.getElementById("alertSelectWrap");
 
     const locateBtn = document.getElementById("locateBtn");
     const startBtn = document.getElementById("startBtn");
@@ -695,6 +839,12 @@
       } else {
         statusText.textContent = "Ready";
       }
+    }
+
+    function updateAlertSelect() {
+      const value = alertLevel.value;
+      alertSelectWrap.classList.remove("secure", "caution", "priority");
+      alertSelectWrap.classList.add(value);
     }
 
     function renderSessionPanel() {
@@ -1002,11 +1152,13 @@
     resumeBtn.addEventListener("click", resumePatrol);
     markBtn.addEventListener("click", markLocation);
     endBtn.addEventListener("click", endPatrol);
+    alertLevel.addEventListener("change", updateAlertSelect);
 
     initMap();
     updateStatus("ready");
     updateButtons();
     updateMetrics();
+    updateAlertSelect();
     addLog("System ready");
 
     // GPS requires HTTPS or localhost on most phones.
