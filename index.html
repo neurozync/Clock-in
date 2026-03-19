@@ -153,16 +153,6 @@
       text-overflow: ellipsis;
     }
 
-    .metric-sub-wrap {
-      margin-top: 6px;
-      font-size: 0.66rem;
-      line-height: 1.3;
-      color: var(--muted);
-      white-space: normal;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-    }
-
     .map-card {
       position: relative;
       min-height: 0;
@@ -248,55 +238,6 @@
       text-overflow: ellipsis;
       text-align: right;
       min-width: 0;
-    }
-
-    .status-control-block {
-      margin-top: 8px;
-      display: grid;
-      gap: 6px;
-      min-width: 0;
-    }
-
-    .status-select {
-      width: 100%;
-      min-height: 38px;
-      padding: 8px 36px 8px 10px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      background: #131920;
-      color: var(--text);
-      font-weight: 800;
-      font-size: 0.74rem;
-      outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      background-image:
-        linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-        linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-      background-position:
-        calc(100% - 18px) calc(50% - 3px),
-        calc(100% - 12px) calc(50% - 3px);
-      background-size: 6px 6px, 6px 6px;
-      background-repeat: no-repeat;
-    }
-
-    .status-select:focus {
-      border-color: var(--accent);
-    }
-
-    .condition-display {
-      min-height: 34px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(0,0,0,0.16);
-      font-size: 0.66rem;
-      line-height: 1.3;
-      color: var(--muted);
-      white-space: normal;
-      word-break: break-word;
-      overflow-wrap: anywhere;
     }
 
     .timeline-details {
@@ -482,9 +423,7 @@
         font-size: 1.12rem;
       }
 
-      .metric-sub,
-      .metric-sub-wrap,
-      .condition-display {
+      .metric-sub {
         font-size: 0.72rem;
       }
 
@@ -499,10 +438,6 @@
 
       .session-row {
         font-size: 0.72rem;
-      }
-
-      .status-select {
-        font-size: 0.8rem;
       }
     }
   </style>
@@ -541,25 +476,11 @@
     <section class="status-session-row">
       <div class="card compact-card">
         <h3>Patrol Status</h3>
-
         <div id="statusPill" class="status-pill">
           <span id="statusDot" class="dot"></span>
           <span id="statusText">Ready</span>
         </div>
-
-        <div class="metric-sub-wrap">Locate first, then start patrol.</div>
-
-        <div class="status-control-block">
-          <select id="conditionSelect" class="status-select">
-            <option value="green">Green — Secure</option>
-            <option value="yellow">Yellow — Caution</option>
-            <option value="red">Red — Incident</option>
-          </select>
-
-          <div id="conditionDescription" class="condition-display">
-            All clear. No issues observed.
-          </div>
-        </div>
+        <div class="metric-sub">Locate first, then start patrol.</div>
       </div>
 
       <div class="card compact-card">
@@ -646,9 +567,7 @@
       lastRecordedTime: null,
 
       lastGeocodeTime: 0,
-      lastGeocodeLatLng: null,
-
-      condition: "green"
+      lastGeocodeLatLng: null
     };
 
     const addressText = document.getElementById("addressText");
@@ -663,8 +582,6 @@
     const sessionInfo = document.getElementById("sessionInfo");
     const sessionStart = document.getElementById("sessionStart");
     const sessionEnd = document.getElementById("sessionEnd");
-    const conditionSelect = document.getElementById("conditionSelect");
-    const conditionDescription = document.getElementById("conditionDescription");
     const log = document.getElementById("log");
     const timelineMeta = document.getElementById("timelineMeta");
 
@@ -795,16 +712,6 @@
       }
     }
 
-    function updateConditionDisplay() {
-      if (state.condition === "green") {
-        conditionDescription.textContent = "All clear. No issues observed.";
-      } else if (state.condition === "yellow") {
-        conditionDescription.textContent = "Minor issue observed. Monitoring required.";
-      } else if (state.condition === "red") {
-        conditionDescription.textContent = "Active issue. Immediate action required.";
-      }
-    }
-
     function updateMetrics() {
       accuracyValue.textContent = state.currentAccuracy != null
         ? `±${Math.round(state.currentAccuracy)} m`
@@ -821,7 +728,6 @@
       }
 
       renderSessionPanel();
-      updateConditionDisplay();
     }
 
     function updateButtons() {
@@ -1090,21 +996,6 @@
       addLog("Patrol ended");
     }
 
-    function onConditionChange(value, shouldLog = true) {
-      state.condition = value;
-      updateConditionDisplay();
-
-      if (shouldLog) {
-        if (value === "green") {
-          addLog("Condition set: Green — Secure");
-        } else if (value === "yellow") {
-          addLog("Condition set: Yellow — Caution");
-        } else if (value === "red") {
-          addLog("Condition set: Red — Incident");
-        }
-      }
-    }
-
     locateBtn.addEventListener("click", locateMe);
     startBtn.addEventListener("click", startPatrol);
     pauseBtn.addEventListener("click", pausePatrol);
@@ -1112,15 +1003,10 @@
     markBtn.addEventListener("click", markLocation);
     endBtn.addEventListener("click", endPatrol);
 
-    conditionSelect.addEventListener("change", (e) => {
-      onConditionChange(e.target.value, true);
-    });
-
     initMap();
     updateStatus("ready");
     updateButtons();
     updateMetrics();
-    onConditionChange(conditionSelect.value, false);
     addLog("System ready");
 
     // GPS requires HTTPS or localhost on most phones.
