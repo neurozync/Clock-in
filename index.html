@@ -498,6 +498,182 @@
     .danger { background: linear-gradient(180deg, #dc2626, #a91d1d); }
     .neutral { background: linear-gradient(180deg, #2b3440, #212933); }
 
+    .comment-launch-row {
+      position: fixed;
+      left: calc(8px + var(--safe-left));
+      right: calc(8px + var(--safe-right));
+      bottom: calc(8px + var(--safe-bottom));
+      z-index: 9998;
+      pointer-events: none;
+    }
+
+    .comment-launch-btn {
+      appearance: none;
+      width: 100%;
+      min-height: 30px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: linear-gradient(180deg, #18212c, #121922);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      touch-action: manipulation;
+      pointer-events: auto;
+    }
+
+    .comment-launch-btn:active {
+      transform: scale(0.99);
+    }
+
+    .comments-overlay {
+      position: fixed;
+      left: calc(8px + var(--safe-left));
+      right: calc(8px + var(--safe-right));
+      bottom: calc(8px + var(--safe-bottom) + 38px);
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(14px);
+      transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .comments-overlay.open {
+      pointer-events: auto;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .comments-panel {
+      width: 100%;
+      min-height: 210px;
+      max-height: 260px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(20, 27, 36, 0.98), rgba(24, 32, 43, 0.98));
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .comments-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    }
+
+    .comments-title-wrap {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .comments-title {
+      font-size: 0.8rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .comments-subtitle {
+      margin-top: 2px;
+      font-size: 0.66rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .comments-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .comments-mini-btn {
+      appearance: none;
+      min-height: 34px;
+      height: 34px;
+      min-width: 68px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #25303c, #1b232d);
+      color: var(--text);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: visible;
+      text-overflow: clip;
+      width: auto;
+      flex: 0 0 auto;
+    }
+
+    .comments-mini-btn.close {
+      min-width: 72px;
+      background: linear-gradient(180deg, #314052, #202a35);
+    }
+
+    .comments-body {
+      padding: 12px;
+      min-height: 0;
+    }
+
+    .comments-textarea {
+      width: 100%;
+      height: 100%;
+      min-height: 130px;
+      max-height: 100%;
+      resize: none;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(7, 11, 16, 0.7);
+      color: var(--text);
+      padding: 14px;
+      font-family: var(--font);
+      font-size: 0.85rem;
+      line-height: 1.42;
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    .comments-textarea::placeholder {
+      color: #7f8b99;
+    }
+
+    .comments-textarea:focus {
+      border-color: rgba(31, 111, 235, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(31, 111, 235, 0.14),
+        0 0 0 1px rgba(31, 111, 235, 0.12);
+    }
+
     .leaflet-control-attribution {
       font-size: 10px;
       background: rgba(255,255,255,0.86);
@@ -670,6 +846,35 @@
     </section>
   </div>
 
+  <section class="comment-launch-row">
+    <button id="commentsBtn" class="comment-launch-btn" type="button">Comments</button>
+  </section>
+
+  <div id="commentsOverlay" class="comments-overlay" aria-hidden="true">
+    <div class="comments-panel">
+      <div class="comments-header">
+        <div class="comments-title-wrap">
+          <div class="comments-title">Comments</div>
+          <div class="comments-subtitle">Operational note entry</div>
+        </div>
+
+        <div class="comments-actions">
+          <button id="clearCommentsBtn" class="comments-mini-btn" type="button">Clear</button>
+          <button id="closeCommentsBtn" class="comments-mini-btn close" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="comments-body">
+        <textarea
+          id="commentsInput"
+          class="comments-textarea"
+          placeholder="Enter tactical comments, observations, unit notes, incident details, vehicle descriptions, timestamps, or site conditions..."
+          spellcheck="false"
+        ></textarea>
+      </div>
+    </div>
+  </div>
+
   <script>
     const CONFIG = {
       defaultCenter: [33.4484, -112.0740],
@@ -735,6 +940,12 @@
     const resumeBtn = document.getElementById("resumeBtn");
     const markBtn = document.getElementById("markBtn");
     const endBtn = document.getElementById("endBtn");
+
+    const commentsBtn = document.getElementById("commentsBtn");
+    const commentsOverlay = document.getElementById("commentsOverlay");
+    const commentsInput = document.getElementById("commentsInput");
+    const closeCommentsBtn = document.getElementById("closeCommentsBtn");
+    const clearCommentsBtn = document.getElementById("clearCommentsBtn");
 
     function initMap() {
       state.map = L.map("map", {
@@ -1146,6 +1357,22 @@
       addLog("Patrol ended");
     }
 
+    function openCommentsOverlay() {
+      commentsOverlay.classList.add("open");
+      commentsOverlay.setAttribute("aria-hidden", "false");
+      setTimeout(() => commentsInput.focus(), 120);
+    }
+
+    function closeCommentsOverlay() {
+      commentsOverlay.classList.remove("open");
+      commentsOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    function clearComments() {
+      commentsInput.value = "";
+      commentsInput.focus();
+    }
+
     locateBtn.addEventListener("click", locateMe);
     startBtn.addEventListener("click", startPatrol);
     pauseBtn.addEventListener("click", pausePatrol);
@@ -1153,6 +1380,22 @@
     markBtn.addEventListener("click", markLocation);
     endBtn.addEventListener("click", endPatrol);
     alertLevel.addEventListener("change", updateAlertSelect);
+
+    commentsBtn.addEventListener("click", openCommentsOverlay);
+    closeCommentsBtn.addEventListener("click", closeCommentsOverlay);
+    clearCommentsBtn.addEventListener("click", clearComments);
+
+    commentsOverlay.addEventListener("click", (event) => {
+      if (event.target === commentsOverlay) {
+        closeCommentsOverlay();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && commentsOverlay.classList.contains("open")) {
+        closeCommentsOverlay();
+      }
+    });
 
     initMap();
     updateStatus("ready");
