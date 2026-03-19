@@ -207,6 +207,39 @@
     .dot.paused { background: var(--warn); }
     .dot.stopped { background: var(--danger); }
 
+    .session-box {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .session-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.68rem;
+      line-height: 1.2;
+    }
+
+    .session-label {
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      flex: 0 0 auto;
+    }
+
+    .session-value {
+      font-weight: 900;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+      min-width: 0;
+    }
+
     .timeline-details {
       border-radius: var(--radius);
       border: 1px solid var(--line);
@@ -357,79 +390,6 @@
     .danger { background: linear-gradient(180deg, #dc2626, #a91d1d); }
     .neutral { background: linear-gradient(180deg, #2b3440, #212933); }
 
-    .summary {
-      position: fixed;
-      inset: 0;
-      z-index: 5000;
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-      background: rgba(0,0,0,0.68);
-      padding:
-        calc(12px + var(--safe-top))
-        calc(10px + var(--safe-right))
-        calc(10px + var(--safe-bottom))
-        calc(10px + var(--safe-left));
-    }
-
-    .summary.show {
-      display: flex;
-    }
-
-    .summary-box {
-      width: 100%;
-      max-width: 560px;
-      background: linear-gradient(180deg, rgba(23, 28, 34, 0.98), rgba(29, 36, 44, 0.98));
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-      padding: 16px;
-      max-height: 90dvh;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .summary-box h3 {
-      margin: 0 0 10px 0;
-      font-size: 0.78rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .summary-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-      margin: 12px 0;
-    }
-
-    .summary-item {
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.02);
-      min-width: 0;
-    }
-
-    .summary-label {
-      color: var(--muted);
-      font-size: 0.68rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .summary-value {
-      font-size: 0.9rem;
-      font-weight: 900;
-      line-height: 1.25;
-      word-break: break-word;
-    }
-
     .leaflet-control-attribution {
       font-size: 10px;
       background: rgba(255,255,255,0.86);
@@ -476,8 +436,8 @@
         font-size: 0.88rem;
       }
 
-      .summary-grid {
-        grid-template-columns: 1fr 1fr;
+      .session-row {
+        font-size: 0.72rem;
       }
     }
   </style>
@@ -525,6 +485,16 @@
 
       <div class="card compact-card">
         <h3>Session</h3>
+        <div class="session-box">
+          <div class="session-row">
+            <span class="session-label">Clock In</span>
+            <span id="sessionStart" class="session-value">--:--:--</span>
+          </div>
+          <div class="session-row">
+            <span class="session-label">Clock Out</span>
+            <span id="sessionEnd" class="session-value">--:--:--</span>
+          </div>
+        </div>
         <div class="metric-sub" id="sessionInfo">No active patrol.</div>
       </div>
     </section>
@@ -556,46 +526,6 @@
       <button id="markBtn" class="neutral">Mark Location</button>
       <button id="endBtn" class="danger" disabled>End Patrol</button>
     </section>
-  </div>
-
-  <div id="summaryModal" class="summary">
-    <div class="summary-box">
-      <h3>Patrol Summary</h3>
-
-      <div class="summary-grid">
-        <div class="summary-item">
-          <div class="summary-label">Start Time</div>
-          <div id="summaryStart" class="summary-value">--</div>
-        </div>
-
-        <div class="summary-item">
-          <div class="summary-label">End Time</div>
-          <div id="summaryEnd" class="summary-value">--</div>
-        </div>
-
-        <div class="summary-item">
-          <div class="summary-label">Duration</div>
-          <div id="summaryDuration" class="summary-value">--</div>
-        </div>
-
-        <div class="summary-item">
-          <div class="summary-label">Distance</div>
-          <div id="summaryDistance" class="summary-value">--</div>
-        </div>
-
-        <div class="summary-item">
-          <div class="summary-label">Breadcrumbs</div>
-          <div id="summaryPoints" class="summary-value">--</div>
-        </div>
-
-        <div class="summary-item">
-          <div class="summary-label">Markers</div>
-          <div id="summaryMarkers" class="summary-value">--</div>
-        </div>
-      </div>
-
-      <button id="closeSummaryBtn" class="primary" style="width:100%;">Close</button>
-    </div>
   </div>
 
   <script>
@@ -650,6 +580,8 @@
     const statusText = document.getElementById("statusText");
     const statusDot = document.getElementById("statusDot");
     const sessionInfo = document.getElementById("sessionInfo");
+    const sessionStart = document.getElementById("sessionStart");
+    const sessionEnd = document.getElementById("sessionEnd");
     const log = document.getElementById("log");
     const timelineMeta = document.getElementById("timelineMeta");
 
@@ -659,15 +591,6 @@
     const resumeBtn = document.getElementById("resumeBtn");
     const markBtn = document.getElementById("markBtn");
     const endBtn = document.getElementById("endBtn");
-
-    const summaryModal = document.getElementById("summaryModal");
-    const closeSummaryBtn = document.getElementById("closeSummaryBtn");
-    const summaryStart = document.getElementById("summaryStart");
-    const summaryEnd = document.getElementById("summaryEnd");
-    const summaryDuration = document.getElementById("summaryDuration");
-    const summaryDistance = document.getElementById("summaryDistance");
-    const summaryPoints = document.getElementById("summaryPoints");
-    const summaryMarkers = document.getElementById("summaryMarkers");
 
     function initMap() {
       state.map = L.map("map", {
@@ -774,6 +697,21 @@
       }
     }
 
+    function renderSessionPanel() {
+      sessionStart.textContent = state.patrolStart ? formatTime(state.patrolStart) : "--:--:--";
+      sessionEnd.textContent = state.patrolEnd ? formatTime(state.patrolEnd) : "--:--:--";
+
+      if (state.isTracking && !state.isPaused) {
+        sessionInfo.textContent = "Patrol active.";
+      } else if (state.isTracking && state.isPaused) {
+        sessionInfo.textContent = "Patrol paused.";
+      } else if (state.patrolEnd) {
+        sessionInfo.textContent = "Patrol completed.";
+      } else {
+        sessionInfo.textContent = "No active patrol.";
+      }
+    }
+
     function updateMetrics() {
       accuracyValue.textContent = state.currentAccuracy != null
         ? `±${Math.round(state.currentAccuracy)} m`
@@ -783,17 +721,13 @@
       markersBadge.textContent = `Markers: ${state.markerCount}`;
       pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
 
-      sessionInfo.textContent = state.isTracking
-        ? `Started ${formatTime(state.patrolStart)}`
-        : state.patrolEnd
-          ? `Last patrol ended ${formatTime(state.patrolEnd)}`
-          : "No active patrol.";
-
       if (state.currentLatLng) {
         coordsBadge.textContent = `Lat: ${state.currentLatLng.lat.toFixed(5)} | Lng: ${state.currentLatLng.lng.toFixed(5)}`;
       } else {
         coordsBadge.textContent = "Lat: -- | Lng: --";
       }
+
+      renderSessionPanel();
     }
 
     function updateButtons() {
@@ -1026,6 +960,7 @@
       state.isPaused = true;
       updateStatus("paused");
       updateButtons();
+      updateMetrics();
       addLog("Patrol paused");
     }
 
@@ -1034,6 +969,7 @@
       state.isPaused = false;
       updateStatus("active");
       updateButtons();
+      updateMetrics();
       addLog("Patrol resumed");
     }
 
@@ -1052,21 +988,12 @@
       stopDurationClock();
       updateStatus("stopped");
       updateButtons();
-      updateMetrics();
 
       const totalDuration = state.patrolEnd - state.patrolStart;
       durationValue.textContent = formatDuration(totalDuration);
 
+      updateMetrics();
       addLog("Patrol ended");
-
-      summaryStart.textContent = formatTime(state.patrolStart);
-      summaryEnd.textContent = formatTime(state.patrolEnd);
-      summaryDuration.textContent = formatDuration(totalDuration);
-      summaryDistance.textContent = formatDistance(state.totalDistanceMeters);
-      summaryPoints.textContent = String(state.breadcrumbPoints.length);
-      summaryMarkers.textContent = String(state.markerCount);
-
-      summaryModal.classList.add("show");
     }
 
     locateBtn.addEventListener("click", locateMe);
@@ -1075,10 +1002,6 @@
     resumeBtn.addEventListener("click", resumePatrol);
     markBtn.addEventListener("click", markLocation);
     endBtn.addEventListener("click", endPatrol);
-
-    closeSummaryBtn.addEventListener("click", () => {
-      summaryModal.classList.remove("show");
-    });
 
     initMap();
     updateStatus("ready");
