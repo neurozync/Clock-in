@@ -35,6 +35,7 @@
       --warn: #d48a12;
       --danger: #dc2626;
       --shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+      --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.24);
       --radius: 18px;
       --radius-sm: 14px;
       --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -171,6 +172,116 @@
       height: 100%;
       min-height: 170px;
       background: #0b0f14;
+    }
+
+    .compass-widget {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 500;
+      width: 72px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(14, 21, 29, 0.94), rgba(19, 27, 36, 0.96));
+      box-shadow: var(--shadow-soft);
+      padding: 8px 8px 7px;
+      display: grid;
+      gap: 6px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .compass-face {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background:
+        radial-gradient(circle at center, rgba(255,255,255,0.05) 0 30%, transparent 31% 100%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      overflow: hidden;
+    }
+
+    .compass-ring {
+      position: absolute;
+      inset: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .compass-north,
+    .compass-east,
+    .compass-south,
+    .compass-west {
+      position: absolute;
+      font-size: 0.52rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .compass-north { top: 4px; left: 50%; transform: translateX(-50%); color: var(--text); }
+    .compass-east  { right: 5px; top: 50%; transform: translateY(-50%); }
+    .compass-south { bottom: 4px; left: 50%; transform: translateX(-50%); }
+    .compass-west  { left: 5px; top: 50%; transform: translateY(-50%); }
+
+    .compass-needle-wrap {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      transform: rotate(0deg);
+      transition: transform 180ms ease-out;
+    }
+
+    .compass-needle {
+      position: relative;
+      width: 4px;
+      height: 34px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffffff 0%, var(--accent-2) 38%, rgba(255,255,255,0.16) 38%, rgba(255,255,255,0.16) 100%);
+      box-shadow: 0 0 12px rgba(32, 164, 243, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .compass-needle::before {
+      content: "";
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 10px solid var(--accent-2);
+      filter: drop-shadow(0 0 8px rgba(32, 164, 243, 0.22));
+    }
+
+    .compass-needle::after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+    }
+
+    .compass-label {
+      text-align: center;
+      font-size: 0.58rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1;
     }
 
     .status-session-row {
@@ -632,6 +743,12 @@
       .export-modal-footer {
         grid-template-columns: 1fr;
       }
+
+      .compass-widget {
+        width: 68px;
+        top: 8px;
+        right: 8px;
+      }
     }
 
     @media (min-width: 768px) {
@@ -681,6 +798,10 @@
         font-size: 0.72rem;
         min-height: 38px;
       }
+
+      .compass-widget {
+        width: 78px;
+      }
     }
   </style>
 </head>
@@ -707,12 +828,26 @@
       <div class="card top-card">
         <h3>Distance</h3>
         <div id="distanceValue" class="metric-value">0.00 mi</div>
-        <div class="metric-sub">Tracked movement</div>
+        <div id="distanceSub" class="metric-sub">Tracked movement</div>
       </div>
     </section>
 
     <section class="map-card">
       <div id="map"></div>
+
+      <div class="compass-widget" aria-label="Compass">
+        <div class="compass-face">
+          <div class="compass-ring"></div>
+          <div class="compass-north">N</div>
+          <div class="compass-east">E</div>
+          <div class="compass-south">S</div>
+          <div class="compass-west">W</div>
+          <div id="compassNeedleWrap" class="compass-needle-wrap">
+            <div class="compass-needle"></div>
+          </div>
+        </div>
+        <div id="compassLabel" class="compass-label">N • 000°</div>
+      </div>
     </section>
 
     <section class="status-session-row">
@@ -827,7 +962,10 @@
       minDistanceMeters: 5,
       minTimeBetweenPointsMs: 3000,
       maxAcceptedAccuracyMeters: 35,
-      reverseGeocodeThrottleMs: 6000
+      reverseGeocodeThrottleMs: 6000,
+      headingMinMoveMeters: 3,
+      headingMinSpeedMps: 0.7,
+      movementHistoryLimit: 6
     };
 
     const state = {
@@ -855,13 +993,21 @@
       lastRecordedTime: null,
 
       lastGeocodeTime: 0,
-      lastGeocodeLatLng: null
+      lastGeocodeLatLng: null,
+
+      currentHeading: 0,
+      headingLabel: "N",
+      lastHeadingPoint: null,
+      movementMode: "Pending",
+      recentSpeedMps: [],
+      headingSource: "estimated"
     };
 
     const addressText = document.getElementById("addressText");
     const accuracyValue = document.getElementById("accuracyValue");
     const durationValue = document.getElementById("durationValue");
     const distanceValue = document.getElementById("distanceValue");
+    const distanceSub = document.getElementById("distanceSub");
     const coordsBadge = document.getElementById("coordsBadge");
     const markersBadge = document.getElementById("markersBadge");
     const pointsBadge = document.getElementById("pointsBadge");
@@ -874,6 +1020,8 @@
     const timelineMeta = document.getElementById("timelineMeta");
     const alertLevel = document.getElementById("alertLevel");
     const alertSelectWrap = document.getElementById("alertSelectWrap");
+    const compassNeedleWrap = document.getElementById("compassNeedleWrap");
+    const compassLabel = document.getElementById("compassLabel");
 
     const locateBtn = document.getElementById("locateBtn");
     const startBtn = document.getElementById("startBtn");
@@ -976,6 +1124,56 @@
       return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
+    function calculateBearing(lat1, lng1, lat2, lng2) {
+      const toRad = deg => (deg * Math.PI) / 180;
+      const toDeg = rad => (rad * 180) / Math.PI;
+
+      const phi1 = toRad(lat1);
+      const phi2 = toRad(lat2);
+      const lambda1 = toRad(lng1);
+      const lambda2 = toRad(lng2);
+
+      const y = Math.sin(lambda2 - lambda1) * Math.cos(phi2);
+      const x =
+        Math.cos(phi1) * Math.sin(phi2) -
+        Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
+
+      const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
+      return bearing;
+    }
+
+    function getCardinalDirection(degrees) {
+      const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+      return dirs[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];
+    }
+
+    function updateCompassUI() {
+      const safeHeading = Number.isFinite(state.currentHeading) ? state.currentHeading : 0;
+      state.headingLabel = getCardinalDirection(safeHeading);
+      compassNeedleWrap.style.transform = `rotate(${safeHeading}deg)`;
+      compassLabel.textContent = `${state.headingLabel} • ${String(Math.round(safeHeading)).padStart(3, "0")}°`;
+    }
+
+    function classifyMovement() {
+      if (!state.recentSpeedMps.length) {
+        state.movementMode = state.isTracking ? "Positioning" : "Pending";
+        return;
+      }
+
+      const avgMps =
+        state.recentSpeedMps.reduce((sum, value) => sum + value, 0) / state.recentSpeedMps.length;
+
+      const avgMph = avgMps * 2.236936;
+
+      if (avgMph < 3) {
+        state.movementMode = "Foot Patrol Pattern";
+      } else if (avgMph < 12) {
+        state.movementMode = "Mixed Movement Pattern";
+      } else {
+        state.movementMode = "Vehicle Patrol Pattern";
+      }
+    }
+
     function updateTimelineMeta() {
       timelineMeta.textContent = `${log.children.length} entr${log.children.length === 1 ? "y" : "ies"}`;
     }
@@ -1035,6 +1233,8 @@
         : "--";
 
       distanceValue.textContent = formatDistance(state.totalDistanceMeters);
+      distanceSub.textContent = state.movementMode || "Tracked movement";
+
       markersBadge.textContent = `Markers: ${state.markerCount}`;
       pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
 
@@ -1045,6 +1245,7 @@
       }
 
       renderSessionPanel();
+      updateCompassUI();
     }
 
     function updateButtons() {
@@ -1112,9 +1313,48 @@
       }
     }
 
-    function updateUserLocation(lat, lng, accuracy, recenter = false) {
+    function updateHeading(lat, lng, reportedHeading, reportedSpeed) {
+      const hasReportedHeading =
+        Number.isFinite(reportedHeading) &&
+        reportedHeading >= 0 &&
+        (Number.isFinite(reportedSpeed) ? reportedSpeed >= CONFIG.headingMinSpeedMps : true);
+
+      if (hasReportedHeading) {
+        state.currentHeading = reportedHeading;
+        state.headingSource = "device";
+        state.lastHeadingPoint = { lat, lng };
+        return;
+      }
+
+      if (!state.lastHeadingPoint) {
+        state.lastHeadingPoint = { lat, lng };
+        return;
+      }
+
+      const moved = haversineMeters(
+        state.lastHeadingPoint.lat,
+        state.lastHeadingPoint.lng,
+        lat,
+        lng
+      );
+
+      if (moved >= CONFIG.headingMinMoveMeters) {
+        state.currentHeading = calculateBearing(
+          state.lastHeadingPoint.lat,
+          state.lastHeadingPoint.lng,
+          lat,
+          lng
+        );
+        state.headingSource = "estimated";
+        state.lastHeadingPoint = { lat, lng };
+      }
+    }
+
+    function updateUserLocation(lat, lng, accuracy, recenter = false, heading = null, speed = null) {
       state.currentLatLng = { lat, lng };
       state.currentAccuracy = accuracy;
+
+      updateHeading(lat, lng, heading, speed);
 
       if (!state.userMarker) {
         state.userMarker = L.circleMarker([lat, lng], {
@@ -1150,7 +1390,7 @@
       reverseGeocode(lat, lng);
     }
 
-    function recordBreadcrumb(lat, lng, accuracy) {
+    function recordBreadcrumb(lat, lng, accuracy, speed = null) {
       const now = Date.now();
 
       if (accuracy > CONFIG.maxAcceptedAccuracyMeters) return;
@@ -1160,6 +1400,7 @@
         state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
         state.lastRecordedPoint = { lat, lng };
         state.lastRecordedTime = now;
+        classifyMovement();
         updateMetrics();
         return;
       }
@@ -1179,6 +1420,23 @@
         state.totalDistanceMeters += moved;
         state.lastRecordedPoint = { lat, lng };
         state.lastRecordedTime = now;
+
+        let speedMps = null;
+
+        if (Number.isFinite(speed) && speed >= 0) {
+          speedMps = speed;
+        } else if (elapsed > 0) {
+          speedMps = moved / (elapsed / 1000);
+        }
+
+        if (Number.isFinite(speedMps)) {
+          state.recentSpeedMps.push(speedMps);
+          if (state.recentSpeedMps.length > CONFIG.movementHistoryLimit) {
+            state.recentSpeedMps.shift();
+          }
+        }
+
+        classifyMovement();
         updateMetrics();
       }
     }
@@ -1194,12 +1452,12 @@
     }
 
     function onPositionSuccess(position, recenter = false) {
-      const { latitude, longitude, accuracy } = position.coords;
+      const { latitude, longitude, accuracy, heading, speed } = position.coords;
 
-      updateUserLocation(latitude, longitude, accuracy, recenter);
+      updateUserLocation(latitude, longitude, accuracy, recenter, heading, speed);
 
       if (state.isTracking && !state.isPaused) {
-        recordBreadcrumb(latitude, longitude, accuracy);
+        recordBreadcrumb(latitude, longitude, accuracy, speed);
       }
     }
 
@@ -1255,6 +1513,8 @@
       state.markerCount = 0;
       state.lastRecordedPoint = null;
       state.lastRecordedTime = null;
+      state.recentSpeedMps = [];
+      state.movementMode = "Positioning";
 
       state.breadcrumbLine.setLatLngs([]);
       durationValue.textContent = "00:00:00";
@@ -1265,6 +1525,8 @@
       startDurationClock();
 
       addLog(`Patrol started at ${state.lastAddress}`);
+      addLog(`Heading initialized: ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`);
+
       recordBreadcrumb(
         state.currentLatLng.lat,
         state.currentLatLng.lng,
@@ -1287,12 +1549,16 @@
       updateStatus("active");
       updateButtons();
       updateMetrics();
-      addLog("Patrol resumed");
+      addLog(`Patrol resumed • heading ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`);
     }
 
     function markLocation() {
       if (!state.currentLatLng || !state.isTracking) return;
-      placeMarker(state.currentLatLng.lat, state.currentLatLng.lng, "Manual Marker");
+      placeMarker(
+        state.currentLatLng.lat,
+        state.currentLatLng.lng,
+        `Manual Marker • ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`
+      );
     }
 
     function endPatrol() {
@@ -1309,8 +1575,9 @@
       const totalDuration = state.patrolEnd - state.patrolStart;
       durationValue.textContent = formatDuration(totalDuration);
 
+      classifyMovement();
       updateMetrics();
-      addLog("Patrol ended");
+      addLog(`Patrol ended • ${state.movementMode}`);
       openExportModal();
     }
 
@@ -1366,6 +1633,8 @@
         "PATROL SUMMARY",
         `Status: ${status}`,
         `Alert Level: ${alertStatus}`,
+        `Movement Classification: ${state.movementMode}`,
+        `Heading: ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`,
         `Clock In: ${start}`,
         `Clock Out: ${end}`,
         `Duration: ${duration}`,
@@ -1631,8 +1900,9 @@
     initMap();
     updateStatus("ready");
     updateButtons();
-    updateMetrics();
     updateAlertSelect();
+    updateCompassUI();
+    updateMetrics();
     addLog("System ready");
 
     // GPS requires HTTPS or localhost on most phones.
