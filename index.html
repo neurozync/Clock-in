@@ -18,6 +18,9 @@
     crossorigin=""
   ></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
   <style>
     :root {
       --bg: #0b1118;
@@ -498,190 +501,116 @@
     .danger { background: linear-gradient(180deg, #dc2626, #a91d1d); }
     .neutral { background: linear-gradient(180deg, #2b3440, #212933); }
 
-    /* COMMENTS BUTTON: fixed, thin, outside layout */
-    .comment-launch-row {
-      position: fixed;
-      left: calc(8px + var(--safe-left));
-      right: calc(8px + var(--safe-right));
-      bottom: calc(-10px + var(--safe-bottom));
-      z-index: 9998;
-      pointer-events: none;
-    }
-
-    .comment-launch-btn {
-      appearance: none;
-      width: 100%;
-      min-height: 18px;
-      height: 18px;
-      padding: 0 6px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      color: var(--text);
-      font-size: 0.64rem;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      background: linear-gradient(180deg, #18212c, #121922);
-      box-shadow: var(--shadow);
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      touch-action: manipulation;
-      pointer-events: auto;
-    }
-
-    .comment-launch-btn:active {
-      transform: scale(0.99);
-    }
-
-    .comments-overlay {
-      position: fixed;
-      left: calc(8px + var(--safe-left));
-      right: calc(8px + var(--safe-right));
-      bottom: calc(22px + var(--safe-bottom));
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(14px);
-      transition:
-        opacity 0.2s ease,
-        transform 0.2s ease;
-    }
-
-    .comments-overlay.open {
-      pointer-events: auto;
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .comments-panel {
-      width: 100%;
-      min-height: 210px;
-      max-height: 260px;
-      border-radius: 20px;
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(20, 27, 36, 0.98), rgba(24, 32, 43, 0.98));
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-    }
-
-    .comments-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-    }
-
-    .comments-title-wrap {
-      min-width: 0;
-      flex: 1 1 auto;
-    }
-
-    .comments-title {
-      font-size: 0.8rem;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .comments-subtitle {
-      margin-top: 2px;
-      font-size: 0.66rem;
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .comments-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 0 0 auto;
-    }
-
-    .comments-mini-btn {
-      appearance: none;
-      min-height: 34px;
-      height: 34px;
-      min-width: 72px;
-      padding: 0 14px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, #25303c, #1b232d);
-      color: var(--text);
-      font-size: 0.68rem;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      cursor: pointer;
-      white-space: nowrap;
-      overflow: visible;
-      text-overflow: clip;
-      width: auto;
-      flex: 0 0 auto;
-      box-shadow: none;
-    }
-
-    .comments-mini-btn.close {
-      min-width: 76px;
-      background: linear-gradient(180deg, #314052, #202a35);
-    }
-
-    .comments-body {
-      padding: 12px;
-      min-height: 0;
-    }
-
-    .comments-textarea {
-      width: 100%;
-      height: 100%;
-      min-height: 130px;
-      max-height: 100%;
-      resize: none;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(7, 11, 16, 0.7);
-      color: var(--text);
-      padding: 14px;
-      font-family: var(--font);
-      font-size: 0.85rem;
-      line-height: 1.42;
-      outline: none;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
-    }
-
-    .comments-textarea::placeholder {
-      color: #7f8b99;
-    }
-
-    .comments-textarea:focus {
-      border-color: rgba(31, 111, 235, 0.5);
-      box-shadow:
-        inset 0 0 0 1px rgba(31, 111, 235, 0.14),
-        0 0 0 1px rgba(31, 111, 235, 0.12);
-    }
-
     .leaflet-control-attribution {
       font-size: 10px;
       background: rgba(255,255,255,0.86);
       border-radius: 8px;
       padding: 2px 6px;
       margin: 0 6px 6px 0;
+    }
+
+    .export-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding:
+        calc(16px + var(--safe-top))
+        calc(16px + var(--safe-right))
+        calc(16px + var(--safe-bottom))
+        calc(16px + var(--safe-left));
+      z-index: 9999;
+    }
+
+    .export-modal-backdrop.show {
+      display: flex;
+    }
+
+    .export-modal {
+      width: min(100%, 420px);
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .export-modal-header {
+      padding: 16px 16px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .export-modal-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+    }
+
+    .export-modal-sub {
+      margin-top: 6px;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .export-modal-body {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .export-action {
+      width: 100%;
+      min-height: 56px;
+      padding: 14px 16px;
+      text-align: left;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #18212c, #121922);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    .export-action strong {
+      display: block;
+      font-size: 0.82rem;
+      line-height: 1.2;
+      margin-bottom: 3px;
+    }
+
+    .export-action span {
+      display: block;
+      font-size: 0.7rem;
+      line-height: 1.25;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .export-modal-footer {
+      padding: 0 14px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .export-status {
+      padding: 0 14px 14px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
+    .hidden-export-clone {
+      position: fixed !important;
+      left: -99999px !important;
+      top: 0 !important;
+      z-index: -1 !important;
+      pointer-events: none !important;
     }
 
     @media (max-width: 420px) {
@@ -698,6 +627,10 @@
       .alert-select-wrap {
         min-width: 150px;
         max-width: 190px;
+      }
+
+      .export-modal-footer {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -752,7 +685,7 @@
   </style>
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="appRoot">
     <section class="topbar">
       <div class="card top-card">
         <h3>Current Address</h3>
@@ -793,14 +726,14 @@
       </div>
 
       <div class="card compact-card">
-        <h3>Session</h3>
+        <h3>Patrol Session</h3>
         <div class="session-box">
           <div class="session-row">
-            <span class="session-label">Clock In</span>
+            <span class="session-label">Patrol Start</span>
             <span id="sessionStart" class="session-value">--:--:--</span>
           </div>
           <div class="session-row">
-            <span class="session-label">Clock Out</span>
+            <span class="session-label">Patrol End</span>
             <span id="sessionEnd" class="session-value">--:--:--</span>
           </div>
         </div>
@@ -848,31 +781,37 @@
     </section>
   </div>
 
-  <section class="comment-launch-row">
-    <button id="commentsBtn" class="comment-launch-btn" type="button">Comments</button>
-  </section>
-
-  <div id="commentsOverlay" class="comments-overlay" aria-hidden="true">
-    <div class="comments-panel">
-      <div class="comments-header">
-        <div class="comments-title-wrap">
-          <div class="comments-title">Comments</div>
-          <div class="comments-subtitle">Operational note entry</div>
-        </div>
-
-        <div class="comments-actions">
-          <button id="clearCommentsBtn" class="comments-mini-btn" type="button">Clear</button>
-          <button id="closeCommentsBtn" class="comments-mini-btn close" type="button">Close</button>
+  <div id="exportModalBackdrop" class="export-modal-backdrop" aria-hidden="true">
+    <div class="export-modal" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+      <div class="export-modal-header">
+        <h2 id="exportModalTitle" class="export-modal-title">Patrol Export Options</h2>
+        <div class="export-modal-sub">
+          Choose how you want to save or send the completed patrol report.
         </div>
       </div>
 
-      <div class="comments-body">
-        <textarea
-          id="commentsInput"
-          class="comments-textarea"
-          placeholder="Enter tactical comments, observations, unit notes, incident details, vehicle descriptions, timestamps, or site conditions..."
-          spellcheck="false"
-        ></textarea>
+      <div class="export-modal-body">
+        <button id="exportImageBtn" class="export-action">
+          <strong>Export as Image</strong>
+          <span>Save the full patrol screen with the map layout and all visible details.</span>
+        </button>
+
+        <button id="exportTextBtn" class="export-action">
+          <strong>Export as Text Message</strong>
+          <span>Create a patrol summary for SMS or system share sheet.</span>
+        </button>
+
+        <button id="exportPdfBtn" class="export-action">
+          <strong>Export as PDF</strong>
+          <span>Save the patrol screen as a PDF document for reporting.</span>
+        </button>
+      </div>
+
+      <div id="exportStatus" class="export-status"></div>
+
+      <div class="export-modal-footer">
+        <button id="copySummaryBtn" class="neutral">Copy Summary</button>
+        <button id="closeExportModalBtn" class="danger">Close</button>
       </div>
     </div>
   </div>
@@ -943,11 +882,14 @@
     const markBtn = document.getElementById("markBtn");
     const endBtn = document.getElementById("endBtn");
 
-    const commentsBtn = document.getElementById("commentsBtn");
-    const commentsOverlay = document.getElementById("commentsOverlay");
-    const commentsInput = document.getElementById("commentsInput");
-    const closeCommentsBtn = document.getElementById("closeCommentsBtn");
-    const clearCommentsBtn = document.getElementById("clearCommentsBtn");
+    const appRoot = document.getElementById("appRoot");
+    const exportModalBackdrop = document.getElementById("exportModalBackdrop");
+    const exportImageBtn = document.getElementById("exportImageBtn");
+    const exportTextBtn = document.getElementById("exportTextBtn");
+    const exportPdfBtn = document.getElementById("exportPdfBtn");
+    const copySummaryBtn = document.getElementById("copySummaryBtn");
+    const closeExportModalBtn = document.getElementById("closeExportModalBtn");
+    const exportStatus = document.getElementById("exportStatus");
 
     function initMap() {
       state.map = L.map("map", {
@@ -959,7 +901,8 @@
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
           maxZoom: 20,
-          attribution: "Tiles &copy; Esri"
+          attribution: "Tiles &copy; Esri",
+          crossOrigin: true
         }
       ).addTo(state.map);
 
@@ -985,6 +928,17 @@
 
     function formatTime(date) {
       return new Date(date).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function formatDateTime(date) {
+      return new Date(date).toLocaleString([], {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
@@ -1357,22 +1311,295 @@
 
       updateMetrics();
       addLog("Patrol ended");
+      openExportModal();
     }
 
-    function openCommentsOverlay() {
-      commentsOverlay.classList.add("open");
-      commentsOverlay.setAttribute("aria-hidden", "false");
-      setTimeout(() => commentsInput.focus(), 120);
+    function openExportModal() {
+      exportModalBackdrop.classList.add("show");
+      exportModalBackdrop.setAttribute("aria-hidden", "false");
+      setExportStatus("");
     }
 
-    function closeCommentsOverlay() {
-      commentsOverlay.classList.remove("open");
-      commentsOverlay.setAttribute("aria-hidden", "true");
+    function closeExportModal() {
+      exportModalBackdrop.classList.remove("show");
+      exportModalBackdrop.setAttribute("aria-hidden", "true");
+      setExportStatus("");
     }
 
-    function clearComments() {
-      commentsInput.value = "";
-      commentsInput.focus();
+    function setExportStatus(message) {
+      exportStatus.textContent = message || "";
+    }
+
+    function sanitizeFileStamp(date = Date.now()) {
+      const d = new Date(date);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
+    }
+
+    function buildPatrolSummary() {
+      const start = state.patrolStart ? formatDateTime(state.patrolStart) : "N/A";
+      const end = state.patrolEnd ? formatDateTime(state.patrolEnd) : "N/A";
+      const duration = durationValue.textContent || "00:00:00";
+      const distance = distanceValue.textContent || "0.00 mi";
+      const accuracy = accuracyValue.textContent || "--";
+      const status = statusText.textContent || "Ready";
+      const alertStatus = alertLevel.options[alertLevel.selectedIndex]?.text || "Secure";
+      const address = state.lastAddress || "Address unavailable";
+      const coords = state.currentLatLng
+        ? `${state.currentLatLng.lat.toFixed(5)}, ${state.currentLatLng.lng.toFixed(5)}`
+        : "N/A";
+
+      const timelineItems = Array.from(log.children)
+        .reverse()
+        .map(item => {
+          const time = item.querySelector(".log-time")?.textContent?.trim() || "";
+          const text = item.querySelector(".log-text")?.textContent?.trim() || "";
+          return `${time} - ${text}`;
+        });
+
+      return [
+        "PATROL SUMMARY",
+        `Status: ${status}`,
+        `Alert Level: ${alertStatus}`,
+        `Clock In: ${start}`,
+        `Clock Out: ${end}`,
+        `Duration: ${duration}`,
+        `Distance: ${distance}`,
+        `Accuracy: ${accuracy}`,
+        `Current Address: ${address}`,
+        `Coordinates: ${coords}`,
+        `Markers: ${state.markerCount}`,
+        `Breadcrumbs: ${state.breadcrumbPoints.length}`,
+        "",
+        "EVENT TIMELINE",
+        ...(timelineItems.length ? timelineItems : ["No event entries recorded."])
+      ].join("\n");
+    }
+
+    function downloadDataUrl(filename, dataUrl) {
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    async function waitForMapTiles(container) {
+      const tiles = Array.from(container.querySelectorAll(".leaflet-tile"));
+      if (!tiles.length) return;
+
+      await Promise.all(
+        tiles.map(tile => {
+          return new Promise(resolve => {
+            if (tile.complete) {
+              resolve();
+            } else {
+              tile.addEventListener("load", resolve, { once: true });
+              tile.addEventListener("error", resolve, { once: true });
+            }
+          });
+        })
+      );
+    }
+
+    async function captureAppCanvas() {
+      const clone = appRoot.cloneNode(true);
+      clone.classList.add("hidden-export-clone");
+      clone.style.width = `${appRoot.offsetWidth}px`;
+      clone.style.height = `${appRoot.offsetHeight}px`;
+
+      const cloneMap = clone.querySelector("#map");
+      if (cloneMap) {
+        cloneMap.innerHTML = "";
+        cloneMap.style.width = `${document.getElementById("map").offsetWidth}px`;
+        cloneMap.style.height = `${document.getElementById("map").offsetHeight}px`;
+      }
+
+      document.body.appendChild(clone);
+
+      try {
+        if (cloneMap && state.map) {
+          const exportMap = L.map(cloneMap, {
+            zoomControl: false,
+            attributionControl: true,
+            preferCanvas: true
+          }).setView(state.map.getCenter(), state.map.getZoom());
+
+          L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            {
+              maxZoom: 20,
+              attribution: "Tiles &copy; Esri",
+              crossOrigin: true
+            }
+          ).addTo(exportMap);
+
+          const latLngs = state.breadcrumbLine ? state.breadcrumbLine.getLatLngs() : [];
+          if (latLngs.length) {
+            L.polyline(latLngs, {
+              color: "#1f6feb",
+              weight: 5,
+              opacity: 0.95,
+              lineJoin: "round"
+            }).addTo(exportMap);
+          }
+
+          if (state.currentLatLng) {
+            L.circleMarker([state.currentLatLng.lat, state.currentLatLng.lng], {
+              radius: 8,
+              weight: 2,
+              color: "#ffffff",
+              fillColor: "#1f6feb",
+              fillOpacity: 1
+            }).addTo(exportMap);
+
+            if (state.currentAccuracy != null) {
+              L.circle([state.currentLatLng.lat, state.currentLatLng.lng], {
+                radius: state.currentAccuracy,
+                color: "#1f6feb",
+                fillColor: "#1f6feb",
+                fillOpacity: 0.12,
+                weight: 1
+              }).addTo(exportMap);
+            }
+          }
+
+          state.map.eachLayer(layer => {
+            if (layer instanceof L.Marker && !(layer === state.userMarker)) {
+              const ll = layer.getLatLng();
+              const popupContent = layer.getPopup()?.getContent?.() || "";
+              const marker = L.marker([ll.lat, ll.lng]).addTo(exportMap);
+              if (popupContent) marker.bindPopup(popupContent);
+            }
+          });
+
+          exportMap.invalidateSize();
+          await new Promise(resolve => setTimeout(resolve, 900));
+          await waitForMapTiles(clone);
+        }
+
+        const canvas = await html2canvas(clone, {
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#0b1118",
+          scale: Math.min(window.devicePixelRatio || 2, 2),
+          logging: false
+        });
+
+        return canvas;
+      } finally {
+        clone.remove();
+      }
+    }
+
+    async function exportAsImage() {
+      try {
+        setExportStatus("Building image...");
+        const canvas = await captureAppCanvas();
+        const stamp = sanitizeFileStamp(state.patrolEnd || Date.now());
+        downloadDataUrl(`patrol-report_${stamp}.png`, canvas.toDataURL("image/png"));
+        setExportStatus("Image export complete.");
+      } catch (error) {
+        console.error(error);
+        setExportStatus("Image export failed.");
+        alert("Unable to export image.");
+      }
+    }
+
+    async function exportAsPDF() {
+      try {
+        setExportStatus("Building PDF...");
+        const canvas = await captureAppCanvas();
+        const imageData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+
+        const pdfWidth = canvas.width * 0.75;
+        const pdfHeight = canvas.height * 0.75;
+        const pdf = new jsPDF({
+          orientation: pdfWidth >= pdfHeight ? "l" : "p",
+          unit: "pt",
+          format: [pdfWidth, pdfHeight]
+        });
+
+        pdf.addImage(imageData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        const stamp = sanitizeFileStamp(state.patrolEnd || Date.now());
+        pdf.save(`patrol-report_${stamp}.pdf`);
+        setExportStatus("PDF export complete.");
+      } catch (error) {
+        console.error(error);
+        setExportStatus("PDF export failed.");
+        alert("Unable to export PDF.");
+      }
+    }
+
+    async function copySummaryToClipboard() {
+      const summary = buildPatrolSummary();
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(summary);
+          setExportStatus("Summary copied to clipboard.");
+          return true;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = summary;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+        setExportStatus("Summary copied to clipboard.");
+        return true;
+      } catch (error) {
+        console.error(error);
+        setExportStatus("Clipboard copy failed.");
+        return false;
+      }
+    }
+
+    async function exportAsTextMessage() {
+      const summary = buildPatrolSummary();
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "Patrol Summary",
+            text: summary
+          });
+          setExportStatus("Summary opened in share sheet.");
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      const copied = await copySummaryToClipboard();
+
+      try {
+        const smsLink = `sms:?&body=${encodeURIComponent(summary)}`;
+        window.location.href = smsLink;
+        setExportStatus(copied
+          ? "Summary copied and SMS draft opened."
+          : "SMS draft opened.");
+      } catch (error) {
+        console.error(error);
+        setExportStatus(copied
+          ? "Summary copied to clipboard."
+          : "Unable to open SMS app.");
+      }
     }
 
     locateBtn.addEventListener("click", locateMe);
@@ -1383,19 +1610,21 @@
     endBtn.addEventListener("click", endPatrol);
     alertLevel.addEventListener("change", updateAlertSelect);
 
-    commentsBtn.addEventListener("click", openCommentsOverlay);
-    closeCommentsBtn.addEventListener("click", closeCommentsOverlay);
-    clearCommentsBtn.addEventListener("click", clearComments);
+    exportImageBtn.addEventListener("click", exportAsImage);
+    exportTextBtn.addEventListener("click", exportAsTextMessage);
+    exportPdfBtn.addEventListener("click", exportAsPDF);
+    copySummaryBtn.addEventListener("click", copySummaryToClipboard);
+    closeExportModalBtn.addEventListener("click", closeExportModal);
 
-    commentsOverlay.addEventListener("click", (event) => {
-      if (event.target === commentsOverlay) {
-        closeCommentsOverlay();
+    exportModalBackdrop.addEventListener("click", (event) => {
+      if (event.target === exportModalBackdrop) {
+        closeExportModal();
       }
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && commentsOverlay.classList.contains("open")) {
-        closeCommentsOverlay();
+      if (event.key === "Escape" && exportModalBackdrop.classList.contains("show")) {
+        closeExportModal();
       }
     });
 
