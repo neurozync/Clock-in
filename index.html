@@ -233,7 +233,8 @@
       display: grid;
       place-items: center;
       transform: rotate(0deg);
-      transition: transform 180ms ease-out;
+      transition: transform 120ms linear;
+      will-change: transform;
     }
 
     .compass-needle {
@@ -814,21 +815,21 @@
       </div>
 
       <div class="card top-card">
-        <h3>Accuracy</h3>
+        <h3>GPS Accuracy</h3>
         <div id="accuracyValue" class="metric-value">--</div>
-        <div class="metric-sub">GPS radius</div>
+        <div id="accuracySub" class="metric-sub">Confidence pending</div>
       </div>
 
       <div class="card top-card">
-        <h3>Duration</h3>
-        <div id="durationValue" class="metric-value">00:00:00</div>
-        <div class="metric-sub">Active patrol time</div>
+        <h3>Movement Mode</h3>
+        <div id="durationValue" class="metric-value">Pending</div>
+        <div id="durationSub" class="metric-sub">Live movement classification</div>
       </div>
 
       <div class="card top-card">
-        <h3>Distance</h3>
-        <div id="distanceValue" class="metric-value">0.00 mi</div>
-        <div id="distanceSub" class="metric-sub">Tracked movement</div>
+        <h3>Speed</h3>
+        <div id="distanceValue" class="metric-value">0.0 mph</div>
+        <div id="distanceSub" class="metric-sub">Current speed</div>
       </div>
     </section>
 
@@ -883,7 +884,7 @@
         </div>
 
         <div class="timeline-header-right">
-          <div id="timelineMeta" class="timeline-summary-meta">2 entries</div>
+          <div id="timelineMeta" class="timeline-summary-meta">1 entry</div>
 
           <div id="alertSelectWrap" class="alert-select-wrap secure">
             <select id="alertLevel" class="alert-select" aria-label="Operational Alert Level">
@@ -901,7 +902,7 @@
     </details>
 
     <section class="badges-row">
-      <div id="coordsBadge" class="badge">Lat: -- | Lng: --</div>
+      <div id="coordsBadge" class="badge">0.0 mph • N 000° • ±--</div>
       <div id="markersBadge" class="badge">Markers: 0</div>
       <div id="pointsBadge" class="badge">Breadcrumbs: 0</div>
     </section>
@@ -955,17 +956,19 @@
     const CONFIG = {
       defaultCenter: [33.4484, -112.0740],
       defaultZoom: 13,
-      trackingZoom: 19,
+      trackingZoom: 20,
       highAccuracy: true,
-      timeout: 15000,
+      timeout: 20000,
       maximumAge: 0,
-      minDistanceMeters: 5,
-      minTimeBetweenPointsMs: 3000,
-      maxAcceptedAccuracyMeters: 35,
-      reverseGeocodeThrottleMs: 6000,
-      headingMinMoveMeters: 3,
-      headingMinSpeedMps: 0.7,
-      movementHistoryLimit: 6
+      minDistanceMeters: 2,
+      minTimeBetweenPointsMs: 1000,
+      maxAcceptedAccuracyMeters: 20,
+      reverseGeocodeThrottleMs: 4000,
+      headingMinMoveMeters: 1.5,
+      headingMinSpeedMps: 0.3,
+      movementHistoryLimit: 10,
+      jitterIgnoreDistanceMeters: 1.5,
+      jitterIgnoreAccuracyMeters: 15
     };
 
     const state = {
@@ -1000,12 +1003,20 @@
       lastHeadingPoint: null,
       movementMode: "Pending",
       recentSpeedMps: [],
-      headingSource: "estimated"
+      headingSource: "estimated",
+      lastMetricSpeedMps: 0,
+      lastUpdateTime: null,
+
+      wakeLock: null,
+      compassInitialized: false,
+      sensorPermissionAttempted: false
     };
 
     const addressText = document.getElementById("addressText");
     const accuracyValue = document.getElementById("accuracyValue");
+    const accuracySub = document.getElementById("accuracySub");
     const durationValue = document.getElementById("durationValue");
+    const durationSub = document.getElementById("durationSub");
     const distanceValue = document.getElementById("distanceValue");
     const distanceSub = document.getElementById("distanceSub");
     const coordsBadge = document.getElementById("coordsBadge");
@@ -1105,6 +1116,10 @@
       return meters / 1609.344;
     }
 
+    function metersPerSecondToMph(mps) {
+      return mps * 2.236936;
+    }
+
     function formatDistance(meters) {
       return `${metersToMiles(meters).toFixed(2)} mi`;
     }
@@ -1138,13 +1153,19 @@
         Math.cos(phi1) * Math.sin(phi2) -
         Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
 
-      const bearing = (toDeg(Math.atan2(y, x)) + 360) % 360;
-      return bearing;
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
     }
 
     function getCardinalDirection(degrees) {
       const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
       return dirs[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];
+    }
+
+    function getAccuracyLevel(acc) {
+      if (!Number.isFinite(acc)) return "Confidence pending";
+      if (acc <= 10) return "High Confidence";
+      if (acc <= 20) return "Moderate Confidence";
+      return "Low Confidence";
     }
 
     function updateCompassUI() {
@@ -1163,14 +1184,16 @@
       const avgMps =
         state.recentSpeedMps.reduce((sum, value) => sum + value, 0) / state.recentSpeedMps.length;
 
-      const avgMph = avgMps * 2.236936;
+      const avgMph = metersPerSecondToMph(avgMps);
 
-      if (avgMph < 3) {
-        state.movementMode = "Foot Patrol Pattern";
+      if (avgMph < 1) {
+        state.movementMode = "Stationary";
+      } else if (avgMph < 3) {
+        state.movementMode = "Foot Patrol";
       } else if (avgMph < 12) {
-        state.movementMode = "Mixed Movement Pattern";
+        state.movementMode = "Mixed Movement";
       } else {
-        state.movementMode = "Vehicle Patrol Pattern";
+        state.movementMode = "Vehicle Patrol";
       }
     }
 
@@ -1227,25 +1250,46 @@
       }
     }
 
-    function updateMetrics() {
-      accuracyValue.textContent = state.currentAccuracy != null
-        ? `±${Math.round(state.currentAccuracy)} m`
-        : "--";
+    function updateAddressDisplay() {
+      if (state.currentAccuracy != null) {
+        addressText.textContent = `${state.lastAddress} • ±${Math.round(state.currentAccuracy)}m`;
+      } else {
+        addressText.textContent = state.lastAddress || "Waiting for GPS...";
+      }
+    }
 
-      distanceValue.textContent = formatDistance(state.totalDistanceMeters);
-      distanceSub.textContent = state.movementMode || "Tracked movement";
+    function updateMetrics() {
+      if (state.currentAccuracy != null) {
+        accuracyValue.textContent = `±${Math.round(state.currentAccuracy)} m`;
+        accuracySub.textContent = getAccuracyLevel(state.currentAccuracy);
+      } else {
+        accuracyValue.textContent = "--";
+        accuracySub.textContent = "Confidence pending";
+      }
+
+      durationValue.textContent = state.movementMode || "Pending";
+      durationSub.textContent = "Live movement classification";
+
+      const speedMph = Number.isFinite(state.lastMetricSpeedMps)
+        ? metersPerSecondToMph(state.lastMetricSpeedMps)
+        : 0;
+
+      distanceValue.textContent = `${speedMph.toFixed(1)} mph`;
+      distanceSub.textContent = "Current speed";
 
       markersBadge.textContent = `Markers: ${state.markerCount}`;
       pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
 
-      if (state.currentLatLng) {
-        coordsBadge.textContent = `Lat: ${state.currentLatLng.lat.toFixed(5)} | Lng: ${state.currentLatLng.lng.toFixed(5)}`;
-      } else {
-        coordsBadge.textContent = "Lat: -- | Lng: --";
-      }
+      const badgeAccuracy = state.currentAccuracy != null
+        ? `±${Math.round(state.currentAccuracy)}m`
+        : "±--";
+
+      coordsBadge.textContent =
+        `${speedMph.toFixed(1)} mph • ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}° • ${badgeAccuracy}`;
 
       renderSessionPanel();
       updateCompassUI();
+      updateAddressDisplay();
     }
 
     function updateButtons() {
@@ -1260,7 +1304,8 @@
       clearInterval(state.durationInterval);
       state.durationInterval = setInterval(() => {
         if (state.patrolStart && state.isTracking && !state.isPaused) {
-          durationValue.textContent = formatDuration(Date.now() - state.patrolStart);
+          // Keep timer running for export summary and session tracking.
+          // No UI duration card now, so nothing visible changes here.
         }
       }, 1000);
     }
@@ -1304,12 +1349,10 @@
         if (!response.ok) throw new Error("Reverse geocode failed");
 
         const data = await response.json();
-        const address = data.display_name || "Address unavailable";
-
-        state.lastAddress = address;
-        addressText.textContent = address;
+        state.lastAddress = data.display_name || "Address unavailable";
+        updateAddressDisplay();
       } catch (error) {
-        addressText.textContent = state.lastAddress || "Address lookup unavailable";
+        updateAddressDisplay();
       }
     }
 
@@ -1321,7 +1364,7 @@
 
       if (hasReportedHeading) {
         state.currentHeading = reportedHeading;
-        state.headingSource = "device";
+        state.headingSource = "device-motion";
         state.lastHeadingPoint = { lat, lng };
         return;
       }
@@ -1345,7 +1388,7 @@
           lat,
           lng
         );
-        state.headingSource = "estimated";
+        state.headingSource = "gps-estimated";
         state.lastHeadingPoint = { lat, lng };
       }
     }
@@ -1353,6 +1396,7 @@
     function updateUserLocation(lat, lng, accuracy, recenter = false, heading = null, speed = null) {
       state.currentLatLng = { lat, lng };
       state.currentAccuracy = accuracy;
+      state.lastUpdateTime = Date.now();
 
       updateHeading(lat, lng, heading, speed);
 
@@ -1400,6 +1444,9 @@
         state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
         state.lastRecordedPoint = { lat, lng };
         state.lastRecordedTime = now;
+        if (Number.isFinite(speed) && speed >= 0) {
+          state.lastMetricSpeedMps = speed;
+        }
         classifyMovement();
         updateMetrics();
         return;
@@ -1430,6 +1477,7 @@
         }
 
         if (Number.isFinite(speedMps)) {
+          state.lastMetricSpeedMps = speedMps;
           state.recentSpeedMps.push(speedMps);
           if (state.recentSpeedMps.length > CONFIG.movementHistoryLimit) {
             state.recentSpeedMps.shift();
@@ -1447,12 +1495,114 @@
       const marker = L.marker([lat, lng]).addTo(state.map);
       marker.bindPopup(`<strong>${label}</strong><br>${formatTime(Date.now())}`);
 
-      addLog(`${label} at ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      addLog(`${label} at ${state.lastAddress}`);
       updateMetrics();
     }
 
+    function handleOrientation(event) {
+      let heading = null;
+
+      if (typeof event.webkitCompassHeading === "number") {
+        heading = event.webkitCompassHeading;
+      } else if (typeof event.alpha === "number") {
+        heading = 360 - event.alpha;
+      }
+
+      if (!Number.isFinite(heading)) return;
+
+      heading = ((heading % 360) + 360) % 360;
+      state.currentHeading = heading;
+      state.headingSource = "sensor";
+      updateCompassUI();
+      updateMetrics();
+    }
+
+    function initRealCompass() {
+      if (state.compassInitialized) return;
+      state.compassInitialized = true;
+
+      window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+      window.addEventListener("deviceorientation", handleOrientation, true);
+    }
+
+    async function ensureCompassPermission() {
+      if (state.sensorPermissionAttempted) return;
+      state.sensorPermissionAttempted = true;
+
+      try {
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          const permissionState = await DeviceOrientationEvent.requestPermission();
+          if (permissionState === "granted") {
+            initRealCompass();
+            addLog("Compass sensor enabled");
+          } else {
+            addLog("Compass permission denied");
+          }
+        } else {
+          initRealCompass();
+        }
+      } catch (error) {
+        console.error(error);
+        initRealCompass();
+      }
+    }
+
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator)) return;
+
+      try {
+        if (state.wakeLock) return;
+        state.wakeLock = await navigator.wakeLock.request("screen");
+        state.wakeLock.addEventListener("release", () => {
+          state.wakeLock = null;
+        });
+      } catch (error) {
+        console.error("Wake lock failed:", error);
+      }
+    }
+
+    async function releaseWakeLock() {
+      try {
+        if (state.wakeLock) {
+          await state.wakeLock.release();
+          state.wakeLock = null;
+        }
+      } catch (error) {
+        console.error("Wake lock release failed:", error);
+      }
+    }
+
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && (state.currentLatLng || state.isTracking)) {
+        await requestWakeLock();
+      }
+    });
+
     function onPositionSuccess(position, recenter = false) {
       const { latitude, longitude, accuracy, heading, speed } = position.coords;
+
+      if (state.currentLatLng) {
+        const moved = haversineMeters(
+          state.currentLatLng.lat,
+          state.currentLatLng.lng,
+          latitude,
+          longitude
+        );
+
+        if (
+          moved < CONFIG.jitterIgnoreDistanceMeters &&
+          accuracy > CONFIG.jitterIgnoreAccuracyMeters
+        ) {
+          return;
+        }
+      }
+
+      if (Number.isFinite(speed) && speed >= 0) {
+        state.lastMetricSpeedMps = speed;
+      }
 
       updateUserLocation(latitude, longitude, accuracy, recenter, heading, speed);
 
@@ -1466,11 +1616,14 @@
       alert(`GPS error: ${error.message}`);
     }
 
-    function locateMe() {
+    async function locateMe() {
       if (!navigator.geolocation) {
         alert("Geolocation is not supported by this browser.");
         return;
       }
+
+      await ensureCompassPermission();
+      await requestWakeLock();
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -1498,11 +1651,13 @@
       }
     }
 
-    function startPatrol() {
+    async function startPatrol() {
       if (!state.currentLatLng) {
         alert("Get your GPS location first.");
         return;
       }
+
+      await requestWakeLock();
 
       state.isTracking = true;
       state.isPaused = false;
@@ -1514,10 +1669,10 @@
       state.lastRecordedPoint = null;
       state.lastRecordedTime = null;
       state.recentSpeedMps = [];
+      state.lastMetricSpeedMps = 0;
       state.movementMode = "Positioning";
 
       state.breadcrumbLine.setLatLngs([]);
-      durationValue.textContent = "00:00:00";
 
       updateStatus("active");
       updateButtons();
@@ -1530,7 +1685,8 @@
       recordBreadcrumb(
         state.currentLatLng.lat,
         state.currentLatLng.lng,
-        state.currentAccuracy ?? 999
+        state.currentAccuracy ?? 999,
+        0
       );
     }
 
@@ -1543,9 +1699,10 @@
       addLog("Patrol paused");
     }
 
-    function resumePatrol() {
+    async function resumePatrol() {
       if (!state.isTracking) return;
       state.isPaused = false;
+      await requestWakeLock();
       updateStatus("active");
       updateButtons();
       updateMetrics();
@@ -1571,9 +1728,6 @@
       stopDurationClock();
       updateStatus("stopped");
       updateButtons();
-
-      const totalDuration = state.patrolEnd - state.patrolStart;
-      durationValue.textContent = formatDuration(totalDuration);
 
       classifyMovement();
       updateMetrics();
@@ -1611,15 +1765,19 @@
     function buildPatrolSummary() {
       const start = state.patrolStart ? formatDateTime(state.patrolStart) : "N/A";
       const end = state.patrolEnd ? formatDateTime(state.patrolEnd) : "N/A";
-      const duration = durationValue.textContent || "00:00:00";
-      const distance = distanceValue.textContent || "0.00 mi";
-      const accuracy = accuracyValue.textContent || "--";
+      const duration = state.patrolStart && state.patrolEnd
+        ? formatDuration(state.patrolEnd - state.patrolStart)
+        : "00:00:00";
+      const distance = formatDistance(state.totalDistanceMeters);
+      const accuracy = state.currentAccuracy != null ? `±${Math.round(state.currentAccuracy)} m` : "--";
+      const accuracyConfidence = getAccuracyLevel(state.currentAccuracy);
       const status = statusText.textContent || "Ready";
       const alertStatus = alertLevel.options[alertLevel.selectedIndex]?.text || "Secure";
       const address = state.lastAddress || "Address unavailable";
       const coords = state.currentLatLng
         ? `${state.currentLatLng.lat.toFixed(5)}, ${state.currentLatLng.lng.toFixed(5)}`
         : "N/A";
+      const speed = `${metersPerSecondToMph(state.lastMetricSpeedMps || 0).toFixed(1)} mph`;
 
       const timelineItems = Array.from(log.children)
         .reverse()
@@ -1635,11 +1793,13 @@
         `Alert Level: ${alertStatus}`,
         `Movement Classification: ${state.movementMode}`,
         `Heading: ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`,
+        `Current Speed: ${speed}`,
+        `GPS Accuracy: ${accuracy}`,
+        `GPS Confidence: ${accuracyConfidence}`,
         `Clock In: ${start}`,
         `Clock Out: ${end}`,
         `Duration: ${duration}`,
         `Distance: ${distance}`,
-        `Accuracy: ${accuracy}`,
         `Current Address: ${address}`,
         `Coordinates: ${coords}`,
         `Markers: ${state.markerCount}`,
@@ -1753,15 +1913,13 @@
           await waitForMapTiles(clone);
         }
 
-        const canvas = await html2canvas(clone, {
+        return await html2canvas(clone, {
           useCORS: true,
           allowTaint: false,
           backgroundColor: "#0b1118",
           scale: Math.min(window.devicePixelRatio || 2, 2),
           logging: false
         });
-
-        return canvas;
       } finally {
         clone.remove();
       }
@@ -1905,7 +2063,7 @@
     updateMetrics();
     addLog("System ready");
 
-    // GPS requires HTTPS or localhost on most phones.
+    // GPS and compass sensors require HTTPS or localhost on most phones.
   </script>
 </body>
 </html>
