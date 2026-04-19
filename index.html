@@ -902,7 +902,7 @@
     </details>
 
     <section class="badges-row">
-      <div id="coordsBadge" class="badge">0.0 mph • N 000° • ±--</div>
+      <div id="coordsBadge" class="badge">Airspace pending</div>
       <div id="markersBadge" class="badge">Markers: 0</div>
       <div id="pointsBadge" class="badge">Breadcrumbs: 0</div>
     </section>
@@ -968,7 +968,9 @@
       headingMinSpeedMps: 0.3,
       movementHistoryLimit: 10,
       jitterIgnoreDistanceMeters: 1.5,
-      jitterIgnoreAccuracyMeters: 15
+      jitterIgnoreAccuracyMeters: 15,
+      aircraftRadiusMeters: 5000,
+      aircraftUpdateIntervalMs: 15000
     };
 
     const state = {
@@ -1009,7 +1011,11 @@
 
       wakeLock: null,
       compassInitialized: false,
-      sensorPermissionAttempted: false
+      sensorPermissionAttempted: false,
+
+      aircraftLastFetchTime: 0,
+      aircraftCount: null,
+      aircraftStatus: "Airspace pending"
     };
 
     const addressText = document.getElementById("addressText");
@@ -1258,6 +1264,10 @@
       }
     }
 
+    function updateAircraftBadge() {
+      coordsBadge.textContent = state.aircraftStatus;
+    }
+
     function updateMetrics() {
       if (state.currentAccuracy != null) {
         accuracyValue.textContent = `±${Math.round(state.currentAccuracy)} m`;
@@ -1280,16 +1290,10 @@
       markersBadge.textContent = `Markers: ${state.markerCount}`;
       pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
 
-      const badgeAccuracy = state.currentAccuracy != null
-        ? `±${Math.round(state.currentAccuracy)}m`
-        : "±--";
-
-      coordsBadge.textContent =
-        `${speedMph.toFixed(1)} mph • ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}° • ${badgeAccuracy}`;
-
       renderSessionPanel();
       updateCompassUI();
       updateAddressDisplay();
+      updateAircraftBadge();
     }
 
     function updateButtons() {
@@ -1304,8 +1308,7 @@
       clearInterval(state.durationInterval);
       state.durationInterval = setInterval(() => {
         if (state.patrolStart && state.isTracking && !state.isPaused) {
-          // Keep timer running for export summary and session tracking.
-          // No UI duration card now, so nothing visible changes here.
+          // timer intentionally preserved for export/session logic
         }
       }, 1000);
     }
@@ -1393,6 +1396,68 @@
       }
     }
 
+    function buildOpenSkyBoundingBox(lat, lng, radiusMeters) {
+      const latDelta = radiusMeters / 111320;
+      const lngDelta = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180) || 1);
+
+      return {
+        lamin: lat - latDelta,
+        lamax: lat + latDelta,
+        lomin: lng - lngDelta,
+        lomax: lng + lngDelta
+      };
+    }
+
+    async function updateAircraft(lat, lng, force = false) {
+      const now = Date.now();
+
+      if (!force && now - state.aircraftLastFetchTime < CONFIG.aircraftUpdateIntervalMs) {
+        return;
+      }
+
+      state.aircraftLastFetchTime = now;
+      state.aircraftStatus = "Scanning airspace...";
+      updateAircraftBadge();
+
+      try {
+        const box = buildOpenSkyBoundingBox(lat, lng, CONFIG.aircraftRadiusMeters);
+        const url =
+          `https://opensky-network.org/api/states/all?lamin=${box.lamin}&lomin=${box.lomin}&lamax=${box.lamax}&lomax=${box.lomax}`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Airspace API error ${response.status}`);
+        }
+
+        const data = await response.json();
+        const states = Array.isArray(data.states) ? data.states : [];
+
+        let count = 0;
+
+        for (const s of states) {
+          const aircraftLng = s[5];
+          const aircraftLat = s[6];
+
+          if (!Number.isFinite(aircraftLat) || !Number.isFinite(aircraftLng)) continue;
+
+          const dist = haversineMeters(lat, lng, aircraftLat, aircraftLng);
+          if (dist <= CONFIG.aircraftRadiusMeters) {
+            count += 1;
+          }
+        }
+
+        state.aircraftCount = count;
+        state.aircraftStatus = count > 0 ? `${count} aircraft nearby` : "Airspace clear";
+      } catch (error) {
+        console.error("Aircraft update failed:", error);
+        state.aircraftCount = null;
+        state.aircraftStatus = "Airspace unavailable";
+      }
+
+      updateAircraftBadge();
+    }
+
     function updateUserLocation(lat, lng, accuracy, recenter = false, heading = null, speed = null) {
       state.currentLatLng = { lat, lng };
       state.currentAccuracy = accuracy;
@@ -1432,6 +1497,7 @@
       updateMetrics();
       updateButtons();
       reverseGeocode(lat, lng);
+      updateAircraft(lat, lng);
     }
 
     function recordBreadcrumb(lat, lng, accuracy, speed = null) {
@@ -1514,7 +1580,6 @@
       state.currentHeading = heading;
       state.headingSource = "sensor";
       updateCompassUI();
-      updateMetrics();
     }
 
     function initRealCompass() {
@@ -1778,6 +1843,7 @@
         ? `${state.currentLatLng.lat.toFixed(5)}, ${state.currentLatLng.lng.toFixed(5)}`
         : "N/A";
       const speed = `${metersPerSecondToMph(state.lastMetricSpeedMps || 0).toFixed(1)} mph`;
+      const airspace = state.aircraftStatus || "Airspace unavailable";
 
       const timelineItems = Array.from(log.children)
         .reverse()
@@ -1796,6 +1862,7 @@
         `Current Speed: ${speed}`,
         `GPS Accuracy: ${accuracy}`,
         `GPS Confidence: ${accuracyConfidence}`,
+        `Airspace: ${airspace}`,
         `Clock In: ${start}`,
         `Clock Out: ${end}`,
         `Duration: ${duration}`,
@@ -2063,7 +2130,8 @@
     updateMetrics();
     addLog("System ready");
 
-    // GPS and compass sensors require HTTPS or localhost on most phones.
+    // GPS, wake lock, compass, and browser fetches require HTTPS or localhost on most phones.
+    // If OpenSky blocks browser requests in your environment, the badge will show "Airspace unavailable".
   </script>
 </body>
 </html>
