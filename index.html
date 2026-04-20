@@ -621,6 +621,29 @@
       margin: 0 6px 6px 0;
     }
 
+    .leaflet-control-layers {
+      border: 1px solid rgba(255,255,255,0.08) !important;
+      background: rgba(14, 21, 29, 0.96) !important;
+      color: var(--text) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--shadow-soft) !important;
+      overflow: hidden;
+    }
+
+    .leaflet-control-layers-toggle {
+      filter: invert(1);
+    }
+
+    .leaflet-control-layers-expanded {
+      padding: 10px 12px !important;
+      color: var(--text) !important;
+      font-size: 12px;
+    }
+
+    .leaflet-control-layers label {
+      color: var(--text) !important;
+    }
+
     .export-modal-backdrop {
       position: fixed;
       inset: 0;
@@ -956,13 +979,13 @@
     const CONFIG = {
       defaultCenter: [33.4484, -112.0740],
       defaultZoom: 13,
-      trackingZoom: 20,
+      trackingZoom: 18,
       highAccuracy: true,
-      timeout: 20000,
+      timeout: 30000,
       maximumAge: 0,
       minDistanceMeters: 2,
       minTimeBetweenPointsMs: 1000,
-      maxAcceptedAccuracyMeters: 20,
+      maxAcceptedAccuracyMeters: 50,
       reverseGeocodeThrottleMs: 4000,
       headingMinMoveMeters: 1.5,
       headingMinSpeedMps: 0.3,
@@ -970,14 +993,16 @@
       jitterIgnoreDistanceMeters: 1.5,
       jitterIgnoreAccuracyMeters: 15,
       aircraftRadiusMeters: 5000,
-      aircraftUpdateIntervalMs: 15000
+      aircraftUpdateIntervalMs: 15000,
+      smoothingFactor: 0.7,
+      ignoreDisplayAccuracyMeters: 100,
+      forwardBiasMeters: 1.5
     };
 
     const state = {
       map: null,
       userMarker: null,
       accuracyCircle: null,
-      breadcrumbLine: null,
       watchId: null,
 
       currentLatLng: null,
@@ -993,6 +1018,8 @@
       durationInterval: null,
 
       breadcrumbPoints: [],
+      breadcrumbDots: [],
+      breadcrumbLayer: null,
       markerCount: 0,
       lastRecordedPoint: null,
       lastRecordedTime: null,
@@ -1015,7 +1042,13 @@
 
       aircraftLastFetchTime: 0,
       aircraftCount: null,
-      aircraftStatus: "Airspace pending"
+      aircraftStatus: "Airspace pending",
+
+      layers: {
+        satellite: null,
+        streets: null,
+        hybrid: null
+      }
     };
 
     const addressText = document.getElementById("addressText");
@@ -1056,38 +1089,92 @@
     const closeExportModalBtn = document.getElementById("closeExportModalBtn");
     const exportStatus = document.getElementById("exportStatus");
 
-    function initMap() {
-      state.map = L.map("map", {
-        zoomControl: true,
-        preferCanvas: true
-      }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
-
-      L.tileLayer(
+    function createEsriSatelliteLayer() {
+      return L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
+          maxNativeZoom: 19,
           maxZoom: 20,
           attribution: "Tiles &copy; Esri",
           crossOrigin: true
         }
-      ).addTo(state.map);
+      );
+    }
 
-      state.breadcrumbLine = L.polyline([], {
-        color: "#1f6feb",
-        weight: 5,
-        opacity: 0.95,
-        lineJoin: "round"
-      }).addTo(state.map);
+    function createEsriLabelsLayer() {
+      return L.tileLayer(
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxNativeZoom: 19,
+          maxZoom: 20,
+          attribution: "Labels &copy; Esri",
+          crossOrigin: true
+        }
+      );
+    }
+
+    function createStreetsLayer() {
+      return L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxNativeZoom: 19,
+          maxZoom: 20,
+          attribution: "&copy; OpenStreetMap contributors",
+          crossOrigin: true
+        }
+      );
+    }
+
+    function initMap() {
+      state.layers.satellite = createEsriSatelliteLayer();
+      state.layers.streets = createStreetsLayer();
+      state.layers.hybrid = L.layerGroup([
+        createEsriSatelliteLayer(),
+        createEsriLabelsLayer()
+      ]);
+
+      state.map = L.map("map", {
+        zoomControl: true,
+        preferCanvas: true,
+        layers: [state.layers.hybrid]
+      }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
+
+      state.breadcrumbLayer = L.layerGroup().addTo(state.map);
+
+      L.control.layers(
+        {
+          "Hybrid": state.layers.hybrid,
+          "Satellite": state.layers.satellite,
+          "Streets": state.layers.streets
+        },
+        {},
+        {
+          collapsed: true,
+          position: "topleft"
+        }
+      ).addTo(state.map);
 
       requestAnimationFrame(() => {
         state.map.invalidateSize();
       });
 
+      setTimeout(() => {
+        state.map.invalidateSize();
+        forceMapRefresh();
+      }, 500);
+
       window.addEventListener("resize", () => {
-        setTimeout(() => state.map.invalidateSize(), 200);
+        setTimeout(() => {
+          state.map.invalidateSize();
+          forceMapRefresh();
+        }, 200);
       });
 
       window.addEventListener("orientationchange", () => {
-        setTimeout(() => state.map.invalidateSize(), 300);
+        setTimeout(() => {
+          state.map.invalidateSize();
+          forceMapRefresh();
+        }, 300);
       });
     }
 
@@ -1458,12 +1545,67 @@
       updateAircraftBadge();
     }
 
-    function updateUserLocation(lat, lng, accuracy, recenter = false, heading = null, speed = null) {
+    function applyForwardBias(lat, lng) {
+      if (!(state.lastMetricSpeedMps > 1) || !Number.isFinite(state.currentHeading)) {
+        return { lat, lng };
+      }
+
+      const bias = CONFIG.forwardBiasMeters;
+      const rad = (state.currentHeading * Math.PI) / 180;
+      const adjustedLat = lat + (bias / 111320) * Math.cos(rad);
+      const adjustedLng =
+        lng + (bias / (111320 * Math.cos((lat * Math.PI) / 180) || 1)) * Math.sin(rad);
+
+      return { lat: adjustedLat, lng: adjustedLng };
+    }
+
+    function smoothLatLng(lat, lng) {
+      if (!state.currentLatLng) return { lat, lng };
+
+      return {
+        lat: state.currentLatLng.lat + (lat - state.currentLatLng.lat) * CONFIG.smoothingFactor,
+        lng: state.currentLatLng.lng + (lng - state.currentLatLng.lng) * CONFIG.smoothingFactor
+      };
+    }
+
+    function forceMapRefresh() {
+      if (!state.map) return;
+
+      setTimeout(() => {
+        state.map.invalidateSize();
+        state.map.eachLayer(layer => {
+          if (typeof layer.redraw === "function") {
+            layer.redraw();
+          }
+        });
+      }, 250);
+    }
+
+    function updateUserLocation(rawLat, rawLng, accuracy, recenter = false, heading = null, speed = null) {
+      if (
+        state.currentLatLng &&
+        Number.isFinite(accuracy) &&
+        accuracy > CONFIG.ignoreDisplayAccuracyMeters
+      ) {
+        return;
+      }
+
+      updateHeading(rawLat, rawLng, heading, speed);
+
+      let lat = rawLat;
+      let lng = rawLng;
+
+      const smoothed = smoothLatLng(lat, lng);
+      lat = smoothed.lat;
+      lng = smoothed.lng;
+
+      const biased = applyForwardBias(lat, lng);
+      lat = biased.lat;
+      lng = biased.lng;
+
       state.currentLatLng = { lat, lng };
       state.currentAccuracy = accuracy;
       state.lastUpdateTime = Date.now();
-
-      updateHeading(lat, lng, heading, speed);
 
       if (!state.userMarker) {
         state.userMarker = L.circleMarker([lat, lng], {
@@ -1490,8 +1632,9 @@
         state.accuracyCircle.setRadius(accuracy);
       }
 
-      if (recenter) {
-        state.map.setView([lat, lng], CONFIG.trackingZoom, { animate: true });
+      if (recenter || state.isTracking) {
+        state.map.setView([lat, lng], CONFIG.trackingZoom, { animate: false });
+        forceMapRefresh();
       }
 
       updateMetrics();
@@ -1500,23 +1643,43 @@
       updateAircraft(lat, lng);
     }
 
+    function dropBreadcrumbDot(lat, lng) {
+      const dot = L.circleMarker([lat, lng], {
+        radius: 3,
+        color: "#1f6feb",
+        fillColor: "#1f6feb",
+        fillOpacity: 0.9,
+        weight: 0
+      }).addTo(state.breadcrumbLayer);
+
+      state.breadcrumbDots.push(dot);
+      state.breadcrumbPoints.push([lat, lng]);
+    }
+
+    function clearBreadcrumbs() {
+      state.breadcrumbPoints = [];
+      state.breadcrumbDots = [];
+      state.breadcrumbLayer.clearLayers();
+    }
+
     function recordBreadcrumb(lat, lng, accuracy, speed = null) {
       const now = Date.now();
 
-      if (accuracy > CONFIG.maxAcceptedAccuracyMeters) return;
-
       if (!state.lastRecordedPoint) {
-        state.breadcrumbPoints.push([lat, lng]);
-        state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
+        dropBreadcrumbDot(lat, lng);
         state.lastRecordedPoint = { lat, lng };
         state.lastRecordedTime = now;
+
         if (Number.isFinite(speed) && speed >= 0) {
           state.lastMetricSpeedMps = speed;
         }
+
         classifyMovement();
         updateMetrics();
         return;
       }
+
+      if (accuracy > CONFIG.maxAcceptedAccuracyMeters) return;
 
       const moved = haversineMeters(
         state.lastRecordedPoint.lat,
@@ -1528,8 +1691,8 @@
       const elapsed = now - state.lastRecordedTime;
 
       if (moved >= CONFIG.minDistanceMeters || elapsed >= CONFIG.minTimeBetweenPointsMs) {
-        state.breadcrumbPoints.push([lat, lng]);
-        state.breadcrumbLine.setLatLngs(state.breadcrumbPoints);
+        dropBreadcrumbDot(lat, lng);
+
         state.totalDistanceMeters += moved;
         state.lastRecordedPoint = { lat, lng };
         state.lastRecordedTime = now;
@@ -1671,8 +1834,13 @@
 
       updateUserLocation(latitude, longitude, accuracy, recenter, heading, speed);
 
-      if (state.isTracking && !state.isPaused) {
-        recordBreadcrumb(latitude, longitude, accuracy, speed);
+      if (state.isTracking && !state.isPaused && state.currentLatLng) {
+        recordBreadcrumb(
+          state.currentLatLng.lat,
+          state.currentLatLng.lng,
+          accuracy,
+          speed
+        );
       }
     }
 
@@ -1729,15 +1897,13 @@
       state.patrolStart = Date.now();
       state.patrolEnd = null;
       state.totalDistanceMeters = 0;
-      state.breadcrumbPoints = [];
+      clearBreadcrumbs();
       state.markerCount = 0;
       state.lastRecordedPoint = null;
       state.lastRecordedTime = null;
       state.recentSpeedMps = [];
       state.lastMetricSpeedMps = 0;
       state.movementMode = "Positioning";
-
-      state.breadcrumbLine.setLatLngs([]);
 
       updateStatus("active");
       updateButtons();
@@ -1747,12 +1913,14 @@
       addLog(`Patrol started at ${state.lastAddress}`);
       addLog(`Heading initialized: ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`);
 
-      recordBreadcrumb(
-        state.currentLatLng.lat,
-        state.currentLatLng.lng,
-        state.currentAccuracy ?? 999,
-        0
-      );
+      if (state.currentLatLng) {
+        recordBreadcrumb(
+          state.currentLatLng.lat,
+          state.currentLatLng.lng,
+          state.currentAccuracy ?? 999,
+          0
+        );
+      }
     }
 
     function pausePatrol() {
@@ -1921,30 +2089,27 @@
 
       try {
         if (cloneMap && state.map) {
+          const exportBase = L.layerGroup([
+            createEsriSatelliteLayer(),
+            createEsriLabelsLayer()
+          ]);
+
           const exportMap = L.map(cloneMap, {
             zoomControl: false,
             attributionControl: true,
-            preferCanvas: true
+            preferCanvas: true,
+            layers: [exportBase]
           }).setView(state.map.getCenter(), state.map.getZoom());
 
-          L.tileLayer(
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            {
-              maxZoom: 20,
-              attribution: "Tiles &copy; Esri",
-              crossOrigin: true
-            }
-          ).addTo(exportMap);
-
-          const latLngs = state.breadcrumbLine ? state.breadcrumbLine.getLatLngs() : [];
-          if (latLngs.length) {
-            L.polyline(latLngs, {
+          state.breadcrumbPoints.forEach(point => {
+            L.circleMarker(point, {
+              radius: 3,
               color: "#1f6feb",
-              weight: 5,
-              opacity: 0.95,
-              lineJoin: "round"
+              fillColor: "#1f6feb",
+              fillOpacity: 0.9,
+              weight: 0
             }).addTo(exportMap);
-          }
+          });
 
           if (state.currentLatLng) {
             L.circleMarker([state.currentLatLng.lat, state.currentLatLng.lng], {
