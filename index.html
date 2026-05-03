@@ -11,15 +11,18 @@
 
 <style>
 :root{
---bg:#070c12;
---panel:#0f1720;
---line:#1f2a36;
+--bg:#0b1118;
+--panel:#141b24;
+--line:#2a3440;
 --text:#e6edf3;
---muted:#7e8b9a;
+--muted:#96a3b3;
 --accent:#1f6feb;
 --success:#16a34a;
 --warn:#d48a12;
 --danger:#dc2626;
+
+--safe-top: env(safe-area-inset-top,0px);
+--safe-bottom: env(safe-area-inset-bottom,0px);
 }
 
 body{
@@ -34,53 +37,49 @@ overflow:hidden;
 height:100vh;
 display:grid;
 grid-template-rows:auto 1fr auto auto;
-gap:6px;
-padding:8px;
+gap:8px;
+padding:calc(10px + var(--safe-top)) 10px calc(10px + var(--safe-bottom));
 }
 
-/* TOP */
-.topbar{
-display:grid;
-grid-template-columns:1fr;
-}
-
+/* ADDRESS */
 .card{
 background:var(--panel);
 border:1px solid var(--line);
-border-radius:14px;
-padding:10px;
+border-radius:16px;
+padding:12px;
 }
 
 h3{
 margin:0 0 6px;
-font-size:.65rem;
+font-size:.7rem;
 letter-spacing:.08em;
 color:var(--muted);
 }
 
 .address{
-font-weight:800;
+font-weight:900;
 font-size:.9rem;
 }
 
 /* MAP */
 .map{
-border-radius:14px;
+border-radius:16px;
 overflow:hidden;
 border:1px solid var(--line);
+height:100%;
 }
 #map{height:100%;}
 
 /* STATUS */
 .status{
 display:flex;
-gap:10px;
 align-items:center;
+gap:10px;
 }
 
 .dot{
-width:10px;height:10px;border-radius:50%;
-background:#777;
+width:12px;height:12px;border-radius:50%;
+background:#888;
 }
 .active{background:var(--success);}
 .paused{background:var(--warn);}
@@ -90,35 +89,34 @@ background:#777;
 .badges{
 display:grid;
 grid-template-columns:1fr 1fr;
-gap:6px;
+gap:8px;
 }
 .badge{
+padding:10px;
 text-align:center;
-padding:8px;
 border-radius:999px;
 border:1px solid var(--line);
-font-weight:800;
-font-size:.75rem;
+font-weight:900;
 }
 
-/* BUTTONS */
+/* CONTROLS */
 .controls{
 display:grid;
 grid-template-columns:repeat(3,1fr);
-gap:6px;
+gap:8px;
 }
 button{
 padding:12px;
-border-radius:12px;
+border-radius:14px;
 border:none;
-font-weight:800;
+font-weight:900;
 color:#fff;
 }
 .primary{background:#1f6feb;}
 .success{background:#16a34a;}
 .warn{background:#d48a12;}
 .danger{background:#dc2626;}
-.neutral{background:#2a3440;}
+.neutral{background:#2b3440;}
 
 button:disabled{opacity:.4}
 </style>
@@ -129,11 +127,9 @@ button:disabled{opacity:.4}
 <div class="app">
 
 <!-- ADDRESS -->
-<div class="topbar">
 <div class="card">
-<h3>CURRENT ADDRESS</h3>
+<h3>Current Address</h3>
 <div id="address" class="address">Waiting for GPS...</div>
-</div>
 </div>
 
 <!-- MAP -->
@@ -142,146 +138,158 @@ button:disabled{opacity:.4}
 <!-- STATUS -->
 <div class="card status">
 <div id="dot" class="dot"></div>
-<div id="status">Ready</div>
+<div id="statusText">Ready</div>
 </div>
 
 <!-- BADGES -->
 <div class="badges">
-<div id="markers" class="badge">Markers: 0</div>
-<div id="crumbs" class="badge">Breadcrumbs: 0</div>
+<div id="markersBadge" class="badge">Markers: 0</div>
+<div id="pointsBadge" class="badge">Breadcrumbs: 0</div>
 </div>
 
 <!-- CONTROLS -->
 <div class="controls">
-<button id="locate" class="primary">Locate</button>
-<button id="start" class="success" disabled>Start</button>
-<button id="pause" class="warn" disabled>Pause</button>
-<button id="resume" class="neutral" disabled>Resume</button>
-<button id="mark" class="neutral">Mark</button>
-<button id="end" class="danger" disabled>End</button>
+<button id="locateBtn" class="primary">Locate</button>
+<button id="startBtn" class="success" disabled>Start</button>
+<button id="pauseBtn" class="warn" disabled>Pause</button>
+<button id="resumeBtn" class="neutral" disabled>Resume</button>
+<button id="markBtn" class="neutral">Mark</button>
+<button id="endBtn" class="danger" disabled>End</button>
 </div>
 
 </div>
 
 <script>
 
-const map=L.map("map").setView([33.4484,-112.074],13);
+/* STATE */
+let map = L.map("map").setView([33.4484,-112.074],13);
 
 L.tileLayer(
 "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
 ).addTo(map);
 
-let marker=null;
-let watch=null;
+let userMarker=null;
+let watchId=null;
 
-let tracking=false;
-let paused=false;
+let isTracking=false;
+let isPaused=false;
 
 let lastPoint=null;
-let crumbs=0;
+let breadcrumbs=0;
 let markers=0;
 
-const addr=document.getElementById("address");
-const status=document.getElementById("status");
+/* UI */
+const address=document.getElementById("address");
+const statusText=document.getElementById("statusText");
 const dot=document.getElementById("dot");
-const crumbUI=document.getElementById("crumbs");
-const markerUI=document.getElementById("markers");
+const markersBadge=document.getElementById("markersBadge");
+const pointsBadge=document.getElementById("pointsBadge");
 
-function setStatus(s){
+const startBtn=document.getElementById("startBtn");
+const pauseBtn=document.getElementById("pauseBtn");
+const resumeBtn=document.getElementById("resumeBtn");
+const endBtn=document.getElementById("endBtn");
+
+/* STATUS */
+function updateStatus(mode){
 dot.className="dot";
-if(s==="active"){dot.classList.add("active");status.textContent="Tracking";}
-else if(s==="paused"){dot.classList.add("paused");status.textContent="Paused";}
-else if(s==="stopped"){dot.classList.add("stopped");status.textContent="Ended";}
-else{status.textContent="Ready";}
+if(mode==="active"){dot.classList.add("active");statusText.textContent="Tracking";}
+else if(mode==="paused"){dot.classList.add("paused");statusText.textContent="Paused";}
+else if(mode==="stopped"){dot.classList.add("stopped");statusText.textContent="Ended";}
+else{statusText.textContent="Ready";}
 }
 
-function update(lat,lng){
+/* BUTTON LOGIC */
+function updateButtons(){
+startBtn.disabled = !userMarker || isTracking;
+pauseBtn.disabled = !isTracking || isPaused;
+resumeBtn.disabled = !isTracking || !isPaused;
+endBtn.disabled = !isTracking;
+}
 
-if(!marker){
-marker=L.circleMarker([lat,lng],{radius:6,color:"#fff",fillColor:"#1f6feb",fillOpacity:1}).addTo(map);
+/* GPS UPDATE */
+function updateLocation(lat,lng){
+
+if(!userMarker){
+userMarker=L.circleMarker([lat,lng],{radius:8,color:"#fff",fillColor:"#1f6feb",fillOpacity:1}).addTo(map);
 }else{
-marker.setLatLng([lat,lng]);
+userMarker.setLatLng([lat,lng]);
 }
 
 map.setView([lat,lng],18);
 
 fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
 .then(r=>r.json())
-.then(d=>addr.textContent=d.display_name);
+.then(d=>address.textContent=d.display_name);
 
-if(tracking && !paused){
+/* TRACKING */
+if(isTracking && !isPaused){
+
 if(!lastPoint){
 lastPoint=[lat,lng];
 }else{
 const dist=map.distance(lastPoint,[lat,lng]);
 
-if(dist>1){
-L.circleMarker([lat,lng],{radius:2,color:"#1f6feb"}).addTo(map);
-crumbs++;
-crumbUI.textContent=`Breadcrumbs: ${crumbs}`;
+// 🔥 FIXED GPS LOGIC (better at speed)
+if(dist > 1){
+L.circleMarker([lat,lng],{radius:3,color:"#1f6feb"}).addTo(map);
+breadcrumbs++;
+pointsBadge.textContent=`Breadcrumbs: ${breadcrumbs}`;
 lastPoint=[lat,lng];
 }
 }
 }
 }
 
+/* GPS */
 function gpsSuccess(pos){
-update(pos.coords.latitude,pos.coords.longitude);
+updateLocation(pos.coords.latitude,pos.coords.longitude);
+updateButtons();
 }
 
 function gpsError(e){
 alert(e.message);
 }
 
-/* FAST TRACKING SETTINGS */
-const gpsOpts={
-enableHighAccuracy:true,
-maximumAge:0,
-timeout:10000
+/* BUTTONS */
+document.getElementById("locateBtn").onclick=()=>{
+navigator.geolocation.getCurrentPosition(gpsSuccess,gpsError,{enableHighAccuracy:true});
+watchId=navigator.geolocation.watchPosition(gpsSuccess,gpsError,{enableHighAccuracy:true,maximumAge:0});
 };
 
-document.getElementById("locate").onclick=()=>{
-navigator.geolocation.getCurrentPosition(gpsSuccess,gpsError,gpsOpts);
-
-if(!watch){
-watch=navigator.geolocation.watchPosition(gpsSuccess,gpsError,gpsOpts);
-}
+startBtn.onclick=()=>{
+isTracking=true;
+isPaused=false;
+updateStatus("active");
+updateButtons();
 };
 
-document.getElementById("start").onclick=()=>{
-tracking=true;
-paused=false;
-setStatus("active");
+pauseBtn.onclick=()=>{
+isPaused=true;
+updateStatus("paused");
+updateButtons();
 };
 
-document.getElementById("pause").onclick=()=>{
-paused=true;
-setStatus("paused");
+resumeBtn.onclick=()=>{
+isPaused=false;
+updateStatus("active");
+updateButtons();
 };
 
-document.getElementById("resume").onclick=()=>{
-paused=false;
-setStatus("active");
-};
-
-document.getElementById("mark").onclick=()=>{
-if(marker){
-L.marker(marker.getLatLng()).addTo(map);
+document.getElementById("markBtn").onclick=()=>{
+if(userMarker){
+L.marker(userMarker.getLatLng()).addTo(map);
 markers++;
-markerUI.textContent=`Markers: ${markers}`;
+markersBadge.textContent=`Markers: ${markers}`;
 }
 };
 
-document.getElementById("end").onclick=()=>{
-tracking=false;
-paused=false;
-setStatus("stopped");
+endBtn.onclick=()=>{
+isTracking=false;
+isPaused=false;
+updateStatus("stopped");
+updateButtons();
 };
-
-/* ENABLE START AFTER LOCK */
-navigator.geolocation.getCurrentPosition(()=>{
-document.getElementById("start").disabled=false;
-});
 
 </script>
 
