@@ -13,11 +13,13 @@
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     crossorigin=""
   />
-
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     crossorigin=""
   ></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <style>
     :root {
@@ -28,11 +30,15 @@
       --text: #e6edf3;
       --muted: #96a3b3;
       --accent: #1f6feb;
+      --accent-2: #20a4f3;
       --success: #16a34a;
       --warn: #d48a12;
       --danger: #dc2626;
       --shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+      --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.24);
       --radius: 18px;
+      --radius-sm: 14px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-right: env(safe-area-inset-right, 0px);
@@ -53,26 +59,33 @@
       height: 100%;
       background: var(--bg);
       color: var(--text);
-      font-family: Inter, system-ui, sans-serif;
+      font-family: var(--font);
       overflow: hidden;
+    }
+
+    body {
+      min-height: 100dvh;
+      min-height: 100svh;
+      min-height: -webkit-fill-available;
     }
 
     .app {
       height: 100dvh;
+      height: 100svh;
+      height: -webkit-fill-available;
       padding:
         calc(8px + var(--safe-top))
         calc(8px + var(--safe-right))
         calc(8px + var(--safe-bottom))
         calc(8px + var(--safe-left));
-
       display: grid;
       grid-template-rows:
         auto
-        minmax(220px, 1fr)
+        minmax(170px, 1fr)
+        auto
         auto
         auto
         auto;
-
       gap: 8px;
       background: var(--bg);
     }
@@ -88,6 +101,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
+      min-width: 0;
       overflow: hidden;
     }
 
@@ -108,28 +122,44 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .address-text {
-      font-size: 0.85rem;
-      line-height: 1.25;
+      font-size: 0.78rem;
+      line-height: 1.2;
       font-weight: 800;
       word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .metric-value {
       font-size: 1rem;
+      line-height: 1.08;
       font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .metric-sub {
       margin-top: 4px;
       font-size: 0.66rem;
+      line-height: 1.25;
       color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .map-card {
       position: relative;
+      min-height: 0;
       overflow: hidden;
       border-radius: var(--radius);
       border: 1px solid var(--line);
@@ -140,7 +170,119 @@
     #map {
       width: 100%;
       height: 100%;
-      min-height: 220px;
+      min-height: 170px;
+      background: #0b0f14;
+    }
+
+    .compass-widget {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 500;
+      width: 72px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(14, 21, 29, 0.94), rgba(19, 27, 36, 0.96));
+      box-shadow: var(--shadow-soft);
+      padding: 8px 8px 7px;
+      display: grid;
+      gap: 6px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .compass-face {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background:
+        radial-gradient(circle at center, rgba(255,255,255,0.05) 0 30%, transparent 31% 100%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      overflow: hidden;
+    }
+
+    .compass-ring {
+      position: absolute;
+      inset: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .compass-north,
+    .compass-east,
+    .compass-south,
+    .compass-west {
+      position: absolute;
+      font-size: 0.52rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .compass-north { top: 4px; left: 50%; transform: translateX(-50%); color: var(--text); }
+    .compass-east  { right: 5px; top: 50%; transform: translateY(-50%); }
+    .compass-south { bottom: 4px; left: 50%; transform: translateX(-50%); }
+    .compass-west  { left: 5px; top: 50%; transform: translateY(-50%); }
+
+    .compass-needle-wrap {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      transform: rotate(0deg);
+      transition: transform 120ms linear;
+      will-change: transform;
+    }
+
+    .compass-needle {
+      position: relative;
+      width: 4px;
+      height: 34px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffffff 0%, var(--accent-2) 38%, rgba(255,255,255,0.16) 38%, rgba(255,255,255,0.16) 100%);
+      box-shadow: 0 0 12px rgba(32, 164, 243, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .compass-needle::before {
+      content: "";
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 10px solid var(--accent-2);
+      filter: drop-shadow(0 0 8px rgba(32, 164, 243, 0.22));
+    }
+
+    .compass-needle::after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
+    }
+
+    .compass-label {
+      text-align: center;
+      font-size: 0.58rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1;
     }
 
     .status-session-row {
@@ -154,6 +296,7 @@
       align-items: center;
       gap: 8px;
       min-height: 42px;
+      max-width: 100%;
       padding: 0 16px;
       border-radius: 999px;
       border: 1px solid var(--line);
@@ -161,6 +304,9 @@
       font-size: 0.78rem;
       font-weight: 900;
       width: fit-content;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .dot {
@@ -168,18 +314,45 @@
       height: 12px;
       border-radius: 999px;
       background: var(--muted);
+      flex: 0 0 auto;
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.04);
     }
 
-    .dot.active {
-      background: var(--success);
+    .dot.active { background: var(--success); }
+    .dot.paused { background: var(--warn); }
+    .dot.stopped { background: var(--danger); }
+
+    .session-box {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
     }
 
-    .dot.paused {
-      background: var(--warn);
+    .session-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.68rem;
+      line-height: 1.2;
     }
 
-    .dot.stopped {
-      background: var(--danger);
+    .session-label {
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      flex: 0 0 auto;
+    }
+
+    .session-value {
+      font-weight: 900;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+      min-width: 0;
     }
 
     .timeline-details {
@@ -194,7 +367,139 @@
       list-style: none;
       cursor: pointer;
       padding: 12px 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timeline-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .timeline-summary-left {
+      min-width: 0;
+    }
+
+    .timeline-summary-left h3 {
+      margin: 0;
+      font-size: 0.72rem;
       font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .timeline-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .timeline-summary-meta {
+      font-size: 0.66rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+      flex: 0 0 auto;
+    }
+
+    .alert-select-wrap {
+      position: relative;
+      min-width: 158px;
+      max-width: 210px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #111821;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+      overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      flex: 0 1 auto;
+    }
+
+    .alert-select-wrap::before {
+      content: "";
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.03);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .alert-select-wrap.secure {
+      border-color: rgba(22, 163, 74, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(22, 163, 74, 0.12),
+        0 0 0 1px rgba(22, 163, 74, 0.08);
+    }
+
+    .alert-select-wrap.secure::before {
+      background: var(--success);
+    }
+
+    .alert-select-wrap.caution {
+      border-color: rgba(212, 138, 18, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(212, 138, 18, 0.12),
+        0 0 0 1px rgba(212, 138, 18, 0.08);
+    }
+
+    .alert-select-wrap.caution::before {
+      background: var(--warn);
+    }
+
+    .alert-select-wrap.priority {
+      border-color: rgba(220, 38, 38, 0.5);
+      box-shadow:
+        inset 0 0 0 1px rgba(220, 38, 38, 0.12),
+        0 0 0 1px rgba(220, 38, 38, 0.08);
+    }
+
+    .alert-select-wrap.priority::before {
+      background: var(--danger);
+    }
+
+    .alert-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      width: 100%;
+      min-height: 36px;
+      padding: 0 34px 0 30px;
+      border: none;
+      outline: none;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      color: var(--text);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .alert-select-wrap::after {
+      content: "▾";
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-52%);
+      color: var(--muted);
+      font-size: 0.72rem;
+      pointer-events: none;
+      z-index: 2;
     }
 
     .timeline-content {
@@ -204,6 +509,7 @@
     .timeline-log {
       max-height: 112px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       border: 1px solid rgba(255,255,255,0.06);
       border-radius: 12px;
       background: rgba(0,0,0,0.18);
@@ -217,6 +523,26 @@
       padding: 8px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       font-size: 0.72rem;
+      line-height: 1.22;
+      min-width: 0;
+      align-items: start;
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: var(--accent-2);
+      font-weight: 900;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .log-text {
+      min-width: 0;
+      word-break: break-word;
     }
 
     .badges-row {
@@ -226,10 +552,12 @@
     }
 
     .badge {
+      min-width: 0;
       min-height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
+      text-align: center;
       padding: 0 10px;
       border-radius: 999px;
       border: 1px solid var(--line);
@@ -237,6 +565,9 @@
       box-shadow: var(--shadow);
       font-size: 0.72rem;
       font-weight: 900;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .controls {
@@ -246,6 +577,7 @@
     }
 
     button {
+      appearance: none;
       width: 100%;
       min-height: 54px;
       padding: 10px 8px;
@@ -254,9 +586,20 @@
       color: var(--text);
       font-size: 0.78rem;
       font-weight: 900;
+      letter-spacing: 0.01em;
       background: linear-gradient(180deg, #1a2129, #141a21);
       box-shadow: var(--shadow);
       cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      touch-action: manipulation;
+    }
+
+    button:active {
+      transform: scale(0.99);
     }
 
     button:disabled {
@@ -264,242 +607,1696 @@
       cursor: not-allowed;
     }
 
-    .primary {
-      background: linear-gradient(180deg, #1f6feb, #1857bb);
+    .primary { background: linear-gradient(180deg, #1f6feb, #1857bb); }
+    .success { background: linear-gradient(180deg, #1f9d55, #167c42); }
+    .warn { background: linear-gradient(180deg, #d48a12, #a76508); }
+    .danger { background: linear-gradient(180deg, #dc2626, #a91d1d); }
+    .neutral { background: linear-gradient(180deg, #2b3440, #212933); }
+
+    .leaflet-control-attribution {
+      font-size: 10px;
+      background: rgba(255,255,255,0.86);
+      border-radius: 8px;
+      padding: 2px 6px;
+      margin: 0 6px 6px 0;
     }
 
-    .success {
-      background: linear-gradient(180deg, #1f9d55, #167c42);
+    .leaflet-control-layers {
+      border: 1px solid rgba(255,255,255,0.08) !important;
+      background: rgba(14, 21, 29, 0.96) !important;
+      color: var(--text) !important;
+      border-radius: 14px !important;
+      box-shadow: var(--shadow-soft) !important;
+      overflow: hidden;
     }
 
-    .warn {
-      background: linear-gradient(180deg, #d48a12, #a76508);
+    .leaflet-control-layers-toggle {
+      filter: invert(1);
     }
 
-    .danger {
-      background: linear-gradient(180deg, #dc2626, #a91d1d);
+    .leaflet-control-layers-expanded {
+      padding: 10px 12px !important;
+      color: var(--text) !important;
+      font-size: 12px;
     }
 
-    .neutral {
-      background: linear-gradient(180deg, #2b3440, #212933);
+    .leaflet-control-layers label {
+      color: var(--text) !important;
+    }
+
+    .export-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding:
+        calc(16px + var(--safe-top))
+        calc(16px + var(--safe-right))
+        calc(16px + var(--safe-bottom))
+        calc(16px + var(--safe-left));
+      z-index: 9999;
+    }
+
+    .export-modal-backdrop.show {
+      display: flex;
+    }
+
+    .export-modal {
+      width: min(100%, 420px);
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .export-modal-header {
+      padding: 16px 16px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .export-modal-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+    }
+
+    .export-modal-sub {
+      margin-top: 6px;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .export-modal-body {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .export-action {
+      width: 100%;
+      min-height: 56px;
+      padding: 14px 16px;
+      text-align: left;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #18212c, #121922);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    .export-action strong {
+      display: block;
+      font-size: 0.82rem;
+      line-height: 1.2;
+      margin-bottom: 3px;
+    }
+
+    .export-action span {
+      display: block;
+      font-size: 0.7rem;
+      line-height: 1.25;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .export-modal-footer {
+      padding: 0 14px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .export-status {
+      padding: 0 14px 14px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
+    .hidden-export-clone {
+      position: fixed !important;
+      left: -99999px !important;
+      top: 0 !important;
+      z-index: -1 !important;
+      pointer-events: none !important;
+    }
+
+    @media (max-width: 420px) {
+      .timeline-details summary {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .timeline-header-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .alert-select-wrap {
+        min-width: 150px;
+        max-width: 190px;
+      }
+
+      .export-modal-footer {
+        grid-template-columns: 1fr;
+      }
+
+      .compass-widget {
+        width: 68px;
+        top: 8px;
+        right: 8px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      .app {
+        grid-template-rows: auto minmax(280px, 1fr) auto auto auto auto;
+      }
+
+      .top-card {
+        min-height: 104px;
+      }
+
+      .compact-card {
+        min-height: 92px;
+      }
+
+      .card h3,
+      .timeline-summary-left h3 {
+        font-size: 0.78rem;
+      }
+
+      .address-text {
+        font-size: 0.9rem;
+      }
+
+      .metric-value {
+        font-size: 1.12rem;
+      }
+
+      .metric-sub {
+        font-size: 0.72rem;
+      }
+
+      .badge {
+        font-size: 0.82rem;
+      }
+
+      button {
+        min-height: 58px;
+        font-size: 0.88rem;
+      }
+
+      .session-row {
+        font-size: 0.72rem;
+      }
+
+      .alert-select {
+        font-size: 0.72rem;
+        min-height: 38px;
+      }
+
+      .compass-widget {
+        width: 78px;
+      }
     }
   </style>
 </head>
-
 <body>
-
-  <div class="app">
-
+  <div class="app" id="appRoot">
     <section class="topbar">
-
       <div class="card top-card">
         <h3>Current Address</h3>
-        <div id="addressText" class="address-text">
-          Waiting for GPS...
-        </div>
+        <div id="addressText" class="address-text">Waiting for GPS...</div>
       </div>
 
       <div class="card top-card">
         <h3>GPS Accuracy</h3>
         <div id="accuracyValue" class="metric-value">--</div>
-        <div id="accuracySub" class="metric-sub">
-          Confidence pending
-        </div>
+        <div id="accuracySub" class="metric-sub">Confidence pending</div>
       </div>
 
+      <div class="card top-card">
+        <h3>Movement Mode</h3>
+        <div id="durationValue" class="metric-value">Pending</div>
+        <div id="durationSub" class="metric-sub">Live movement classification</div>
+      </div>
+
+      <div class="card top-card">
+        <h3>Speed</h3>
+        <div id="distanceValue" class="metric-value">0.0 mph</div>
+        <div id="distanceSub" class="metric-sub">Current speed</div>
+      </div>
     </section>
 
     <section class="map-card">
       <div id="map"></div>
+
+      <div class="compass-widget" aria-label="Compass">
+        <div class="compass-face">
+          <div class="compass-ring"></div>
+          <div class="compass-north">N</div>
+          <div class="compass-east">E</div>
+          <div class="compass-south">S</div>
+          <div class="compass-west">W</div>
+          <div id="compassNeedleWrap" class="compass-needle-wrap">
+            <div class="compass-needle"></div>
+          </div>
+        </div>
+        <div id="compassLabel" class="compass-label">N • 000°</div>
+      </div>
     </section>
 
     <section class="status-session-row">
-
       <div class="card compact-card">
         <h3>Patrol Status</h3>
-
         <div id="statusPill" class="status-pill">
           <span id="statusDot" class="dot"></span>
           <span id="statusText">Ready</span>
         </div>
-
-        <div class="metric-sub">
-          Locate first, then start patrol.
-        </div>
+        <div class="metric-sub">Locate first, then start patrol.</div>
       </div>
 
       <div class="card compact-card">
         <h3>Patrol Session</h3>
-
-        <div class="metric-sub">
-          Session tracking active
+        <div class="session-box">
+          <div class="session-row">
+            <span class="session-label">Patrol Start</span>
+            <span id="sessionStart" class="session-value">--:--:--</span>
+          </div>
+          <div class="session-row">
+            <span class="session-label">Patrol End</span>
+            <span id="sessionEnd" class="session-value">--:--:--</span>
+          </div>
         </div>
+        <div class="metric-sub" id="sessionInfo">No active patrol.</div>
       </div>
-
     </section>
 
     <details class="timeline-details" open>
-
       <summary>
-        Event Timeline
+        <div class="timeline-summary-left">
+          <h3>Event Timeline</h3>
+        </div>
+
+        <div class="timeline-header-right">
+          <div id="timelineMeta" class="timeline-summary-meta">1 entry</div>
+
+          <div id="alertSelectWrap" class="alert-select-wrap secure">
+            <select id="alertLevel" class="alert-select" aria-label="Operational Alert Level">
+              <option value="secure" selected>Secure</option>
+              <option value="caution">Caution</option>
+              <option value="priority">High Priority Issue</option>
+            </select>
+          </div>
+        </div>
       </summary>
 
       <div class="timeline-content">
         <div id="log" class="timeline-log"></div>
       </div>
-
     </details>
 
     <section class="badges-row">
-      <div id="coordsBadge" class="badge">
-        Airspace pending
-      </div>
-
-      <div id="markersBadge" class="badge">
-        Markers: 0
-      </div>
-
-      <div id="pointsBadge" class="badge">
-        Breadcrumbs: 0
-      </div>
+      <div id="coordsBadge" class="badge">Airspace pending</div>
+      <div id="markersBadge" class="badge">Markers: 0</div>
+      <div id="pointsBadge" class="badge">Breadcrumbs: 0</div>
     </section>
 
     <section class="controls">
-
-      <button id="locateBtn" class="primary">
-        Locate Me
-      </button>
-
-      <button id="startBtn" class="success">
-        Clock In
-      </button>
-
-      <button id="pauseBtn" class="warn">
-        Pause
-      </button>
-
-      <button id="resumeBtn" class="neutral">
-        Resume
-      </button>
-
-      <button id="markBtn" class="neutral">
-        Mark Location
-      </button>
-
-      <button id="endBtn" class="danger">
-        End Patrol
-      </button>
-
+      <button id="locateBtn" class="primary">Locate Me</button>
+      <button id="startBtn" class="success" disabled>Clock In</button>
+      <button id="pauseBtn" class="warn" disabled>Pause</button>
+      <button id="resumeBtn" class="neutral" disabled>Resume</button>
+      <button id="markBtn" class="neutral">Mark Location</button>
+      <button id="endBtn" class="danger" disabled>End Patrol</button>
     </section>
+  </div>
 
+  <div id="exportModalBackdrop" class="export-modal-backdrop" aria-hidden="true">
+    <div class="export-modal" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+      <div class="export-modal-header">
+        <h2 id="exportModalTitle" class="export-modal-title">Patrol Export Options</h2>
+        <div class="export-modal-sub">
+          Choose how you want to save or send the completed patrol report.
+        </div>
+      </div>
+
+      <div class="export-modal-body">
+        <button id="exportImageBtn" class="export-action">
+          <strong>Export as Image</strong>
+          <span>Save the full patrol screen with the map layout and all visible details.</span>
+        </button>
+
+        <button id="exportTextBtn" class="export-action">
+          <strong>Export as Text Message</strong>
+          <span>Create a patrol summary for SMS or system share sheet.</span>
+        </button>
+
+        <button id="exportPdfBtn" class="export-action">
+          <strong>Export as PDF</strong>
+          <span>Save the patrol screen as a PDF document for reporting.</span>
+        </button>
+      </div>
+
+      <div id="exportStatus" class="export-status"></div>
+
+      <div class="export-modal-footer">
+        <button id="copySummaryBtn" class="neutral">Copy Summary</button>
+        <button id="closeExportModalBtn" class="danger">Close</button>
+      </div>
+    </div>
   </div>
 
   <script>
+    const CONFIG = {
+      defaultCenter: [33.4484, -112.0740],
+      defaultZoom: 13,
+      trackingZoom: 18,
+      highAccuracy: true,
+      timeout: 30000,
+      maximumAge: 0,
+      minDistanceMeters: 2,
+      minTimeBetweenPointsMs: 1000,
+      maxAcceptedAccuracyMeters: 50,
+      reverseGeocodeThrottleMs: 4000,
+      headingMinMoveMeters: 1.5,
+      headingMinSpeedMps: 0.3,
+      movementHistoryLimit: 10,
+      jitterIgnoreDistanceMeters: 1.5,
+      jitterIgnoreAccuracyMeters: 15,
+      aircraftRadiusMeters: 5000,
+      aircraftUpdateIntervalMs: 15000,
+      smoothingFactor: 0.7,
+      ignoreDisplayAccuracyMeters: 100,
+      forwardBiasMeters: 1.5
+    };
 
-    const map = L.map("map", {
-      zoomControl: true
-    }).setView([33.4484, -112.0740], 13);
+    const state = {
+      map: null,
+      userMarker: null,
+      accuracyCircle: null,
+      watchId: null,
 
-    L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      {
-        maxZoom: 19,
-        attribution: "Tiles © Esri"
+      currentLatLng: null,
+      currentAccuracy: null,
+      lastAddress: "Waiting for GPS...",
+
+      isTracking: false,
+      isPaused: false,
+
+      patrolStart: null,
+      patrolEnd: null,
+      totalDistanceMeters: 0,
+      durationInterval: null,
+
+      breadcrumbPoints: [],
+      breadcrumbDots: [],
+      breadcrumbLayer: null,
+      markerCount: 0,
+      lastRecordedPoint: null,
+      lastRecordedTime: null,
+
+      lastGeocodeTime: 0,
+      lastGeocodeLatLng: null,
+
+      currentHeading: 0,
+      headingLabel: "N",
+      lastHeadingPoint: null,
+      movementMode: "Pending",
+      recentSpeedMps: [],
+      headingSource: "estimated",
+      lastMetricSpeedMps: 0,
+      lastUpdateTime: null,
+
+      wakeLock: null,
+      compassInitialized: false,
+      sensorPermissionAttempted: false,
+
+      aircraftLastFetchTime: 0,
+      aircraftCount: null,
+      aircraftStatus: "Airspace pending",
+
+      layers: {
+        satellite: null,
+        streets: null,
+        hybrid: null
       }
-    ).addTo(map);
+    };
 
-    const log = document.getElementById("log");
-    const statusDot = document.getElementById("statusDot");
+    const addressText = document.getElementById("addressText");
+    const accuracyValue = document.getElementById("accuracyValue");
+    const accuracySub = document.getElementById("accuracySub");
+    const durationValue = document.getElementById("durationValue");
+    const durationSub = document.getElementById("durationSub");
+    const distanceValue = document.getElementById("distanceValue");
+    const distanceSub = document.getElementById("distanceSub");
+    const coordsBadge = document.getElementById("coordsBadge");
+    const markersBadge = document.getElementById("markersBadge");
+    const pointsBadge = document.getElementById("pointsBadge");
     const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+    const sessionInfo = document.getElementById("sessionInfo");
+    const sessionStart = document.getElementById("sessionStart");
+    const sessionEnd = document.getElementById("sessionEnd");
+    const log = document.getElementById("log");
+    const timelineMeta = document.getElementById("timelineMeta");
+    const alertLevel = document.getElementById("alertLevel");
+    const alertSelectWrap = document.getElementById("alertSelectWrap");
+    const compassNeedleWrap = document.getElementById("compassNeedleWrap");
+    const compassLabel = document.getElementById("compassLabel");
 
-    function addLog(message) {
+    const locateBtn = document.getElementById("locateBtn");
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const markBtn = document.getElementById("markBtn");
+    const endBtn = document.getElementById("endBtn");
 
-      const item = document.createElement("div");
+    const appRoot = document.getElementById("appRoot");
+    const exportModalBackdrop = document.getElementById("exportModalBackdrop");
+    const exportImageBtn = document.getElementById("exportImageBtn");
+    const exportTextBtn = document.getElementById("exportTextBtn");
+    const exportPdfBtn = document.getElementById("exportPdfBtn");
+    const copySummaryBtn = document.getElementById("copySummaryBtn");
+    const closeExportModalBtn = document.getElementById("closeExportModalBtn");
+    const exportStatus = document.getElementById("exportStatus");
 
-      item.className = "log-item";
-
-      item.innerHTML = `
-        <div>${new Date().toLocaleTimeString()}</div>
-        <div>${message}</div>
-      `;
-
-      log.prepend(item);
+    function createEsriSatelliteLayer() {
+      return L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxNativeZoom: 19,
+          maxZoom: 20,
+          attribution: "Tiles &copy; Esri",
+          crossOrigin: true
+        }
+      );
     }
 
-    document.getElementById("locateBtn").addEventListener("click", () => {
+    function createEsriLabelsLayer() {
+      return L.tileLayer(
+        "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxNativeZoom: 19,
+          maxZoom: 20,
+          attribution: "Labels &copy; Esri",
+          crossOrigin: true
+        }
+      );
+    }
 
-      navigator.geolocation.getCurrentPosition((pos) => {
+    function createStreetsLayer() {
+      return L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxNativeZoom: 19,
+          maxZoom: 20,
+          attribution: "&copy; OpenStreetMap contributors",
+          crossOrigin: true
+        }
+      );
+    }
 
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const acc = Math.round(pos.coords.accuracy);
+    function initMap() {
+      state.layers.satellite = createEsriSatelliteLayer();
+      state.layers.streets = createStreetsLayer();
+      state.layers.hybrid = L.layerGroup([
+        createEsriSatelliteLayer(),
+        createEsriLabelsLayer()
+      ]);
 
-        map.setView([lat, lng], 18);
+      state.map = L.map("map", {
+        zoomControl: true,
+        preferCanvas: true,
+        layers: [state.layers.hybrid]
+      }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
 
-        document.getElementById("accuracyValue").textContent =
-          `±${acc} m`;
+      state.breadcrumbLayer = L.layerGroup().addTo(state.map);
 
-        document.getElementById("addressText").textContent =
-          `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      L.control.layers(
+        {
+          "Hybrid": state.layers.hybrid,
+          "Satellite": state.layers.satellite,
+          "Streets": state.layers.streets
+        },
+        {},
+        {
+          collapsed: true,
+          position: "topleft"
+        }
+      ).addTo(state.map);
 
-        L.circleMarker([lat, lng], {
+      requestAnimationFrame(() => {
+        state.map.invalidateSize();
+      });
+
+      setTimeout(() => {
+        state.map.invalidateSize();
+        forceMapRefresh();
+      }, 500);
+
+      window.addEventListener("resize", () => {
+        setTimeout(() => {
+          state.map.invalidateSize();
+          forceMapRefresh();
+        }, 200);
+      });
+
+      window.addEventListener("orientationchange", () => {
+        setTimeout(() => {
+          state.map.invalidateSize();
+          forceMapRefresh();
+        }, 300);
+      });
+    }
+
+    function formatTime(date) {
+      return new Date(date).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function formatDateTime(date) {
+      return new Date(date).toLocaleString([], {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function metersToMiles(meters) {
+      return meters / 1609.344;
+    }
+
+    function metersPerSecondToMph(mps) {
+      return mps * 2.236936;
+    }
+
+    function formatDistance(meters) {
+      return `${metersToMiles(meters).toFixed(2)} mi`;
+    }
+
+    function haversineMeters(lat1, lng1, lat2, lng2) {
+      const toRad = deg => (deg * Math.PI) / 180;
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) ** 2;
+
+      return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function calculateBearing(lat1, lng1, lat2, lng2) {
+      const toRad = deg => (deg * Math.PI) / 180;
+      const toDeg = rad => (rad * 180) / Math.PI;
+
+      const phi1 = toRad(lat1);
+      const phi2 = toRad(lat2);
+      const lambda1 = toRad(lng1);
+      const lambda2 = toRad(lng2);
+
+      const y = Math.sin(lambda2 - lambda1) * Math.cos(phi2);
+      const x =
+        Math.cos(phi1) * Math.sin(phi2) -
+        Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
+
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function getCardinalDirection(degrees) {
+      const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+      return dirs[Math.round((((degrees % 360) + 360) % 360) / 45) % 8];
+    }
+
+    function getAccuracyLevel(acc) {
+      if (!Number.isFinite(acc)) return "Confidence pending";
+      if (acc <= 10) return "High Confidence";
+      if (acc <= 20) return "Moderate Confidence";
+      return "Low Confidence";
+    }
+
+    function updateCompassUI() {
+      const safeHeading = Number.isFinite(state.currentHeading) ? state.currentHeading : 0;
+      state.headingLabel = getCardinalDirection(safeHeading);
+      compassNeedleWrap.style.transform = `rotate(${safeHeading}deg)`;
+      compassLabel.textContent = `${state.headingLabel} • ${String(Math.round(safeHeading)).padStart(3, "0")}°`;
+    }
+
+    function classifyMovement() {
+      if (!state.recentSpeedMps.length) {
+        state.movementMode = state.isTracking ? "Positioning" : "Pending";
+        return;
+      }
+
+      const avgMps =
+        state.recentSpeedMps.reduce((sum, value) => sum + value, 0) / state.recentSpeedMps.length;
+
+      const avgMph = metersPerSecondToMph(avgMps);
+
+      if (avgMph < 1) {
+        state.movementMode = "Stationary";
+      } else if (avgMph < 3) {
+        state.movementMode = "Foot Patrol";
+      } else if (avgMph < 12) {
+        state.movementMode = "Mixed Movement";
+      } else {
+        state.movementMode = "Vehicle Patrol";
+      }
+    }
+
+    function updateTimelineMeta() {
+      timelineMeta.textContent = `${log.children.length} entr${log.children.length === 1 ? "y" : "ies"}`;
+    }
+
+    function addLog(message) {
+      const item = document.createElement("div");
+      item.className = "log-item";
+      item.innerHTML = `
+        <div class="log-time">${formatTime(Date.now())}</div>
+        <div class="log-text">${message}</div>
+      `;
+      log.prepend(item);
+      updateTimelineMeta();
+    }
+
+    function updateStatus(mode) {
+      statusDot.className = "dot";
+
+      if (mode === "active") {
+        statusDot.classList.add("active");
+        statusText.textContent = "Tracking";
+      } else if (mode === "paused") {
+        statusDot.classList.add("paused");
+        statusText.textContent = "Paused";
+      } else if (mode === "stopped") {
+        statusDot.classList.add("stopped");
+        statusText.textContent = "Ended";
+      } else {
+        statusText.textContent = "Ready";
+      }
+    }
+
+    function updateAlertSelect() {
+      const value = alertLevel.value;
+      alertSelectWrap.classList.remove("secure", "caution", "priority");
+      alertSelectWrap.classList.add(value);
+    }
+
+    function renderSessionPanel() {
+      sessionStart.textContent = state.patrolStart ? formatTime(state.patrolStart) : "--:--:--";
+      sessionEnd.textContent = state.patrolEnd ? formatTime(state.patrolEnd) : "--:--:--";
+
+      if (state.isTracking && !state.isPaused) {
+        sessionInfo.textContent = "Patrol active.";
+      } else if (state.isTracking && state.isPaused) {
+        sessionInfo.textContent = "Patrol paused.";
+      } else if (state.patrolEnd) {
+        sessionInfo.textContent = "Patrol completed.";
+      } else {
+        sessionInfo.textContent = "No active patrol.";
+      }
+    }
+
+    function updateAddressDisplay() {
+      if (state.currentAccuracy != null) {
+        addressText.textContent = `${state.lastAddress} • ±${Math.round(state.currentAccuracy)}m`;
+      } else {
+        addressText.textContent = state.lastAddress || "Waiting for GPS...";
+      }
+    }
+
+    function updateAircraftBadge() {
+      coordsBadge.textContent = state.aircraftStatus;
+    }
+
+    function updateMetrics() {
+      if (state.currentAccuracy != null) {
+        accuracyValue.textContent = `±${Math.round(state.currentAccuracy)} m`;
+        accuracySub.textContent = getAccuracyLevel(state.currentAccuracy);
+      } else {
+        accuracyValue.textContent = "--";
+        accuracySub.textContent = "Confidence pending";
+      }
+
+      durationValue.textContent = state.movementMode || "Pending";
+      durationSub.textContent = "Live movement classification";
+
+      const speedMph = Number.isFinite(state.lastMetricSpeedMps)
+        ? metersPerSecondToMph(state.lastMetricSpeedMps)
+        : 0;
+
+      distanceValue.textContent = `${speedMph.toFixed(1)} mph`;
+      distanceSub.textContent = "Current speed";
+
+      markersBadge.textContent = `Markers: ${state.markerCount}`;
+      pointsBadge.textContent = `Breadcrumbs: ${state.breadcrumbPoints.length}`;
+
+      renderSessionPanel();
+      updateCompassUI();
+      updateAddressDisplay();
+      updateAircraftBadge();
+    }
+
+    function updateButtons() {
+      startBtn.disabled = !state.currentLatLng || state.isTracking;
+      pauseBtn.disabled = !state.isTracking || state.isPaused;
+      resumeBtn.disabled = !state.isTracking || !state.isPaused;
+      markBtn.disabled = !state.isTracking;
+      endBtn.disabled = !state.isTracking;
+    }
+
+    function startDurationClock() {
+      clearInterval(state.durationInterval);
+      state.durationInterval = setInterval(() => {
+        if (state.patrolStart && state.isTracking && !state.isPaused) {
+          // timer intentionally preserved for export/session logic
+        }
+      }, 1000);
+    }
+
+    function stopDurationClock() {
+      clearInterval(state.durationInterval);
+    }
+
+    function shouldReverseGeocode(lat, lng) {
+      const now = Date.now();
+
+      if (!state.lastGeocodeLatLng) return true;
+
+      const moved = haversineMeters(
+        state.lastGeocodeLatLng.lat,
+        state.lastGeocodeLatLng.lng,
+        lat,
+        lng
+      );
+
+      return (
+        now - state.lastGeocodeTime >= CONFIG.reverseGeocodeThrottleMs ||
+        moved >= 20
+      );
+    }
+
+    async function reverseGeocode(lat, lng) {
+      if (!shouldReverseGeocode(lat, lng)) return;
+
+      try {
+        state.lastGeocodeTime = Date.now();
+        state.lastGeocodeLatLng = { lat, lng };
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`,
+          {
+            headers: { Accept: "application/json" }
+          }
+        );
+
+        if (!response.ok) throw new Error("Reverse geocode failed");
+
+        const data = await response.json();
+        state.lastAddress = data.display_name || "Address unavailable";
+        updateAddressDisplay();
+      } catch (error) {
+        updateAddressDisplay();
+      }
+    }
+
+    function updateHeading(lat, lng, reportedHeading, reportedSpeed) {
+      const hasReportedHeading =
+        Number.isFinite(reportedHeading) &&
+        reportedHeading >= 0 &&
+        (Number.isFinite(reportedSpeed) ? reportedSpeed >= CONFIG.headingMinSpeedMps : true);
+
+      if (hasReportedHeading) {
+        state.currentHeading = reportedHeading;
+        state.headingSource = "device-motion";
+        state.lastHeadingPoint = { lat, lng };
+        return;
+      }
+
+      if (!state.lastHeadingPoint) {
+        state.lastHeadingPoint = { lat, lng };
+        return;
+      }
+
+      const moved = haversineMeters(
+        state.lastHeadingPoint.lat,
+        state.lastHeadingPoint.lng,
+        lat,
+        lng
+      );
+
+      if (moved >= CONFIG.headingMinMoveMeters) {
+        state.currentHeading = calculateBearing(
+          state.lastHeadingPoint.lat,
+          state.lastHeadingPoint.lng,
+          lat,
+          lng
+        );
+        state.headingSource = "gps-estimated";
+        state.lastHeadingPoint = { lat, lng };
+      }
+    }
+
+    function buildOpenSkyBoundingBox(lat, lng, radiusMeters) {
+      const latDelta = radiusMeters / 111320;
+      const lngDelta = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180) || 1);
+
+      return {
+        lamin: lat - latDelta,
+        lamax: lat + latDelta,
+        lomin: lng - lngDelta,
+        lomax: lng + lngDelta
+      };
+    }
+
+    async function updateAircraft(lat, lng, force = false) {
+      const now = Date.now();
+
+      if (!force && now - state.aircraftLastFetchTime < CONFIG.aircraftUpdateIntervalMs) {
+        return;
+      }
+
+      state.aircraftLastFetchTime = now;
+      state.aircraftStatus = "Scanning airspace...";
+      updateAircraftBadge();
+
+      try {
+        const box = buildOpenSkyBoundingBox(lat, lng, CONFIG.aircraftRadiusMeters);
+        const url =
+          `https://opensky-network.org/api/states/all?lamin=${box.lamin}&lomin=${box.lomin}&lamax=${box.lamax}&lomax=${box.lomax}`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Airspace API error ${response.status}`);
+        }
+
+        const data = await response.json();
+        const states = Array.isArray(data.states) ? data.states : [];
+
+        let count = 0;
+
+        for (const s of states) {
+          const aircraftLng = s[5];
+          const aircraftLat = s[6];
+
+          if (!Number.isFinite(aircraftLat) || !Number.isFinite(aircraftLng)) continue;
+
+          const dist = haversineMeters(lat, lng, aircraftLat, aircraftLng);
+          if (dist <= CONFIG.aircraftRadiusMeters) {
+            count += 1;
+          }
+        }
+
+        state.aircraftCount = count;
+        state.aircraftStatus = count > 0 ? `${count} aircraft nearby` : "Airspace clear";
+      } catch (error) {
+        console.error("Aircraft update failed:", error);
+        state.aircraftCount = null;
+        state.aircraftStatus = "Airspace unavailable";
+      }
+
+      updateAircraftBadge();
+    }
+
+    function applyForwardBias(lat, lng) {
+      if (!(state.lastMetricSpeedMps > 1) || !Number.isFinite(state.currentHeading)) {
+        return { lat, lng };
+      }
+
+      const bias = CONFIG.forwardBiasMeters;
+      const rad = (state.currentHeading * Math.PI) / 180;
+      const adjustedLat = lat + (bias / 111320) * Math.cos(rad);
+      const adjustedLng =
+        lng + (bias / (111320 * Math.cos((lat * Math.PI) / 180) || 1)) * Math.sin(rad);
+
+      return { lat: adjustedLat, lng: adjustedLng };
+    }
+
+    function smoothLatLng(lat, lng) {
+      if (!state.currentLatLng) return { lat, lng };
+
+      return {
+        lat: state.currentLatLng.lat + (lat - state.currentLatLng.lat) * CONFIG.smoothingFactor,
+        lng: state.currentLatLng.lng + (lng - state.currentLatLng.lng) * CONFIG.smoothingFactor
+      };
+    }
+
+    function forceMapRefresh() {
+      if (!state.map) return;
+
+      setTimeout(() => {
+        state.map.invalidateSize();
+        state.map.eachLayer(layer => {
+          if (typeof layer.redraw === "function") {
+            layer.redraw();
+          }
+        });
+      }, 250);
+    }
+
+    function updateUserLocation(rawLat, rawLng, accuracy, recenter = false, heading = null, speed = null) {
+      if (
+        state.currentLatLng &&
+        Number.isFinite(accuracy) &&
+        accuracy > CONFIG.ignoreDisplayAccuracyMeters
+      ) {
+        return;
+      }
+
+      updateHeading(rawLat, rawLng, heading, speed);
+
+      let lat = rawLat;
+      let lng = rawLng;
+
+      const smoothed = smoothLatLng(lat, lng);
+      lat = smoothed.lat;
+      lng = smoothed.lng;
+
+      const biased = applyForwardBias(lat, lng);
+      lat = biased.lat;
+      lng = biased.lng;
+
+      state.currentLatLng = { lat, lng };
+      state.currentAccuracy = accuracy;
+      state.lastUpdateTime = Date.now();
+
+      if (!state.userMarker) {
+        state.userMarker = L.circleMarker([lat, lng], {
           radius: 8,
+          weight: 2,
           color: "#ffffff",
           fillColor: "#1f6feb",
           fillOpacity: 1
-        }).addTo(map);
+        }).addTo(state.map);
+      } else {
+        state.userMarker.setLatLng([lat, lng]);
+      }
 
-        addLog("GPS lock acquired");
+      if (!state.accuracyCircle) {
+        state.accuracyCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: "#1f6feb",
+          fillColor: "#1f6feb",
+          fillOpacity: 0.12,
+          weight: 1
+        }).addTo(state.map);
+      } else {
+        state.accuracyCircle.setLatLng([lat, lng]);
+        state.accuracyCircle.setRadius(accuracy);
+      }
 
-      });
+      if (recenter || state.isTracking) {
+        state.map.setView([lat, lng], CONFIG.trackingZoom, { animate: false });
+        forceMapRefresh();
+      }
 
+      updateMetrics();
+      updateButtons();
+      reverseGeocode(lat, lng);
+      updateAircraft(lat, lng);
+    }
+
+    function dropBreadcrumbDot(lat, lng) {
+      const dot = L.circleMarker([lat, lng], {
+        radius: 3,
+        color: "#1f6feb",
+        fillColor: "#1f6feb",
+        fillOpacity: 0.9,
+        weight: 0
+      }).addTo(state.breadcrumbLayer);
+
+      state.breadcrumbDots.push(dot);
+      state.breadcrumbPoints.push([lat, lng]);
+    }
+
+    function clearBreadcrumbs() {
+      state.breadcrumbPoints = [];
+      state.breadcrumbDots = [];
+      state.breadcrumbLayer.clearLayers();
+    }
+
+    function recordBreadcrumb(lat, lng, accuracy, speed = null) {
+      const now = Date.now();
+
+      if (!state.lastRecordedPoint) {
+        dropBreadcrumbDot(lat, lng);
+        state.lastRecordedPoint = { lat, lng };
+        state.lastRecordedTime = now;
+
+        if (Number.isFinite(speed) && speed >= 0) {
+          state.lastMetricSpeedMps = speed;
+        }
+
+        classifyMovement();
+        updateMetrics();
+        return;
+      }
+
+      if (accuracy > CONFIG.maxAcceptedAccuracyMeters) return;
+
+      const moved = haversineMeters(
+        state.lastRecordedPoint.lat,
+        state.lastRecordedPoint.lng,
+        lat,
+        lng
+      );
+
+      const elapsed = now - state.lastRecordedTime;
+
+      if (moved >= CONFIG.minDistanceMeters || elapsed >= CONFIG.minTimeBetweenPointsMs) {
+        dropBreadcrumbDot(lat, lng);
+
+        state.totalDistanceMeters += moved;
+        state.lastRecordedPoint = { lat, lng };
+        state.lastRecordedTime = now;
+
+        let speedMps = null;
+
+        if (Number.isFinite(speed) && speed >= 0) {
+          speedMps = speed;
+        } else if (elapsed > 0) {
+          speedMps = moved / (elapsed / 1000);
+        }
+
+        if (Number.isFinite(speedMps)) {
+          state.lastMetricSpeedMps = speedMps;
+          state.recentSpeedMps.push(speedMps);
+          if (state.recentSpeedMps.length > CONFIG.movementHistoryLimit) {
+            state.recentSpeedMps.shift();
+          }
+        }
+
+        classifyMovement();
+        updateMetrics();
+      }
+    }
+
+    function placeMarker(lat, lng, label = "Location Marked") {
+      state.markerCount += 1;
+
+      const marker = L.marker([lat, lng]).addTo(state.map);
+      marker.bindPopup(`<strong>${label}</strong><br>${formatTime(Date.now())}`);
+
+      addLog(`${label} at ${state.lastAddress}`);
+      updateMetrics();
+    }
+
+    function handleOrientation(event) {
+      let heading = null;
+
+      if (typeof event.webkitCompassHeading === "number") {
+        heading = event.webkitCompassHeading;
+      } else if (typeof event.alpha === "number") {
+        heading = 360 - event.alpha;
+      }
+
+      if (!Number.isFinite(heading)) return;
+
+      heading = ((heading % 360) + 360) % 360;
+      state.currentHeading = heading;
+      state.headingSource = "sensor";
+      updateCompassUI();
+    }
+
+    function initRealCompass() {
+      if (state.compassInitialized) return;
+      state.compassInitialized = true;
+
+      window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+      window.addEventListener("deviceorientation", handleOrientation, true);
+    }
+
+    async function ensureCompassPermission() {
+      if (state.sensorPermissionAttempted) return;
+      state.sensorPermissionAttempted = true;
+
+      try {
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          const permissionState = await DeviceOrientationEvent.requestPermission();
+          if (permissionState === "granted") {
+            initRealCompass();
+            addLog("Compass sensor enabled");
+          } else {
+            addLog("Compass permission denied");
+          }
+        } else {
+          initRealCompass();
+        }
+      } catch (error) {
+        console.error(error);
+        initRealCompass();
+      }
+    }
+
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator)) return;
+
+      try {
+        if (state.wakeLock) return;
+        state.wakeLock = await navigator.wakeLock.request("screen");
+        state.wakeLock.addEventListener("release", () => {
+          state.wakeLock = null;
+        });
+      } catch (error) {
+        console.error("Wake lock failed:", error);
+      }
+    }
+
+    async function releaseWakeLock() {
+      try {
+        if (state.wakeLock) {
+          await state.wakeLock.release();
+          state.wakeLock = null;
+        }
+      } catch (error) {
+        console.error("Wake lock release failed:", error);
+      }
+    }
+
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && (state.currentLatLng || state.isTracking)) {
+        await requestWakeLock();
+      }
     });
 
-    document.getElementById("startBtn").addEventListener("click", () => {
+    function onPositionSuccess(position, recenter = false) {
+      const { latitude, longitude, accuracy, heading, speed } = position.coords;
 
-      statusDot.className = "dot active";
-      statusText.textContent = "Tracking";
+      if (state.currentLatLng) {
+        const moved = haversineMeters(
+          state.currentLatLng.lat,
+          state.currentLatLng.lng,
+          latitude,
+          longitude
+        );
 
-      addLog("Patrol started");
+        if (
+          moved < CONFIG.jitterIgnoreDistanceMeters &&
+          accuracy > CONFIG.jitterIgnoreAccuracyMeters
+        ) {
+          return;
+        }
+      }
 
-    });
+      if (Number.isFinite(speed) && speed >= 0) {
+        state.lastMetricSpeedMps = speed;
+      }
 
-    document.getElementById("pauseBtn").addEventListener("click", () => {
+      updateUserLocation(latitude, longitude, accuracy, recenter, heading, speed);
 
-      statusDot.className = "dot paused";
-      statusText.textContent = "Paused";
+      if (state.isTracking && !state.isPaused && state.currentLatLng) {
+        recordBreadcrumb(
+          state.currentLatLng.lat,
+          state.currentLatLng.lng,
+          accuracy,
+          speed
+        );
+      }
+    }
 
+    function onPositionError(error) {
+      addLog(`GPS error: ${error.message}`);
+      alert(`GPS error: ${error.message}`);
+    }
+
+    async function locateMe() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+      }
+
+      await ensureCompassPermission();
+      await requestWakeLock();
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          onPositionSuccess(position, true);
+          addLog("Initial GPS lock acquired");
+        },
+        onPositionError,
+        {
+          enableHighAccuracy: CONFIG.highAccuracy,
+          timeout: CONFIG.timeout,
+          maximumAge: CONFIG.maximumAge
+        }
+      );
+
+      if (state.watchId == null) {
+        state.watchId = navigator.geolocation.watchPosition(
+          (position) => onPositionSuccess(position, false),
+          onPositionError,
+          {
+            enableHighAccuracy: CONFIG.highAccuracy,
+            timeout: CONFIG.timeout,
+            maximumAge: CONFIG.maximumAge
+          }
+        );
+      }
+    }
+
+    async function startPatrol() {
+      if (!state.currentLatLng) {
+        alert("Get your GPS location first.");
+        return;
+      }
+
+      await requestWakeLock();
+
+      state.isTracking = true;
+      state.isPaused = false;
+      state.patrolStart = Date.now();
+      state.patrolEnd = null;
+      state.totalDistanceMeters = 0;
+      clearBreadcrumbs();
+      state.markerCount = 0;
+      state.lastRecordedPoint = null;
+      state.lastRecordedTime = null;
+      state.recentSpeedMps = [];
+      state.lastMetricSpeedMps = 0;
+      state.movementMode = "Positioning";
+
+      updateStatus("active");
+      updateButtons();
+      updateMetrics();
+      startDurationClock();
+
+      addLog(`Patrol started at ${state.lastAddress}`);
+      addLog(`Heading initialized: ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`);
+
+      if (state.currentLatLng) {
+        recordBreadcrumb(
+          state.currentLatLng.lat,
+          state.currentLatLng.lng,
+          state.currentAccuracy ?? 999,
+          0
+        );
+      }
+    }
+
+    function pausePatrol() {
+      if (!state.isTracking) return;
+      state.isPaused = true;
+      updateStatus("paused");
+      updateButtons();
+      updateMetrics();
       addLog("Patrol paused");
+    }
 
+    async function resumePatrol() {
+      if (!state.isTracking) return;
+      state.isPaused = false;
+      await requestWakeLock();
+      updateStatus("active");
+      updateButtons();
+      updateMetrics();
+      addLog(`Patrol resumed • heading ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`);
+    }
+
+    function markLocation() {
+      if (!state.currentLatLng || !state.isTracking) return;
+      placeMarker(
+        state.currentLatLng.lat,
+        state.currentLatLng.lng,
+        `Manual Marker • ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`
+      );
+    }
+
+    function endPatrol() {
+      if (!state.isTracking) return;
+
+      state.isTracking = false;
+      state.isPaused = false;
+      state.patrolEnd = Date.now();
+
+      stopDurationClock();
+      updateStatus("stopped");
+      updateButtons();
+
+      classifyMovement();
+      updateMetrics();
+      addLog(`Patrol ended • ${state.movementMode}`);
+      openExportModal();
+    }
+
+    function openExportModal() {
+      exportModalBackdrop.classList.add("show");
+      exportModalBackdrop.setAttribute("aria-hidden", "false");
+      setExportStatus("");
+    }
+
+    function closeExportModal() {
+      exportModalBackdrop.classList.remove("show");
+      exportModalBackdrop.setAttribute("aria-hidden", "true");
+      setExportStatus("");
+    }
+
+    function setExportStatus(message) {
+      exportStatus.textContent = message || "";
+    }
+
+    function sanitizeFileStamp(date = Date.now()) {
+      const d = new Date(date);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
+    }
+
+    function buildPatrolSummary() {
+      const start = state.patrolStart ? formatDateTime(state.patrolStart) : "N/A";
+      const end = state.patrolEnd ? formatDateTime(state.patrolEnd) : "N/A";
+      const duration = state.patrolStart && state.patrolEnd
+        ? formatDuration(state.patrolEnd - state.patrolStart)
+        : "00:00:00";
+      const distance = formatDistance(state.totalDistanceMeters);
+      const accuracy = state.currentAccuracy != null ? `±${Math.round(state.currentAccuracy)} m` : "--";
+      const accuracyConfidence = getAccuracyLevel(state.currentAccuracy);
+      const status = statusText.textContent || "Ready";
+      const alertStatus = alertLevel.options[alertLevel.selectedIndex]?.text || "Secure";
+      const address = state.lastAddress || "Address unavailable";
+      const coords = state.currentLatLng
+        ? `${state.currentLatLng.lat.toFixed(5)}, ${state.currentLatLng.lng.toFixed(5)}`
+        : "N/A";
+      const speed = `${metersPerSecondToMph(state.lastMetricSpeedMps || 0).toFixed(1)} mph`;
+      const airspace = state.aircraftStatus || "Airspace unavailable";
+
+      const timelineItems = Array.from(log.children)
+        .reverse()
+        .map(item => {
+          const time = item.querySelector(".log-time")?.textContent?.trim() || "";
+          const text = item.querySelector(".log-text")?.textContent?.trim() || "";
+          return `${time} - ${text}`;
+        });
+
+      return [
+        "PATROL SUMMARY",
+        `Status: ${status}`,
+        `Alert Level: ${alertStatus}`,
+        `Movement Classification: ${state.movementMode}`,
+        `Heading: ${state.headingLabel} ${String(Math.round(state.currentHeading)).padStart(3, "0")}°`,
+        `Current Speed: ${speed}`,
+        `GPS Accuracy: ${accuracy}`,
+        `GPS Confidence: ${accuracyConfidence}`,
+        `Airspace: ${airspace}`,
+        `Clock In: ${start}`,
+        `Clock Out: ${end}`,
+        `Duration: ${duration}`,
+        `Distance: ${distance}`,
+        `Current Address: ${address}`,
+        `Coordinates: ${coords}`,
+        `Markers: ${state.markerCount}`,
+        `Breadcrumbs: ${state.breadcrumbPoints.length}`,
+        "",
+        "EVENT TIMELINE",
+        ...(timelineItems.length ? timelineItems : ["No event entries recorded."])
+      ].join("\n");
+    }
+
+    function downloadDataUrl(filename, dataUrl) {
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    async function waitForMapTiles(container) {
+      const tiles = Array.from(container.querySelectorAll(".leaflet-tile"));
+      if (!tiles.length) return;
+
+      await Promise.all(
+        tiles.map(tile => {
+          return new Promise(resolve => {
+            if (tile.complete) {
+              resolve();
+            } else {
+              tile.addEventListener("load", resolve, { once: true });
+              tile.addEventListener("error", resolve, { once: true });
+            }
+          });
+        })
+      );
+    }
+
+    async function captureAppCanvas() {
+      const clone = appRoot.cloneNode(true);
+      clone.classList.add("hidden-export-clone");
+      clone.style.width = `${appRoot.offsetWidth}px`;
+      clone.style.height = `${appRoot.offsetHeight}px`;
+
+      const cloneMap = clone.querySelector("#map");
+      if (cloneMap) {
+        cloneMap.innerHTML = "";
+        cloneMap.style.width = `${document.getElementById("map").offsetWidth}px`;
+        cloneMap.style.height = `${document.getElementById("map").offsetHeight}px`;
+      }
+
+      document.body.appendChild(clone);
+
+      try {
+        if (cloneMap && state.map) {
+          const exportBase = L.layerGroup([
+            createEsriSatelliteLayer(),
+            createEsriLabelsLayer()
+          ]);
+
+          const exportMap = L.map(cloneMap, {
+            zoomControl: false,
+            attributionControl: true,
+            preferCanvas: true,
+            layers: [exportBase]
+          }).setView(state.map.getCenter(), state.map.getZoom());
+
+          state.breadcrumbPoints.forEach(point => {
+            L.circleMarker(point, {
+              radius: 3,
+              color: "#1f6feb",
+              fillColor: "#1f6feb",
+              fillOpacity: 0.9,
+              weight: 0
+            }).addTo(exportMap);
+          });
+
+          if (state.currentLatLng) {
+            L.circleMarker([state.currentLatLng.lat, state.currentLatLng.lng], {
+              radius: 8,
+              weight: 2,
+              color: "#ffffff",
+              fillColor: "#1f6feb",
+              fillOpacity: 1
+            }).addTo(exportMap);
+
+            if (state.currentAccuracy != null) {
+              L.circle([state.currentLatLng.lat, state.currentLatLng.lng], {
+                radius: state.currentAccuracy,
+                color: "#1f6feb",
+                fillColor: "#1f6feb",
+                fillOpacity: 0.12,
+                weight: 1
+              }).addTo(exportMap);
+            }
+          }
+
+          state.map.eachLayer(layer => {
+            if (layer instanceof L.Marker && !(layer === state.userMarker)) {
+              const ll = layer.getLatLng();
+              const popupContent = layer.getPopup()?.getContent?.() || "";
+              const marker = L.marker([ll.lat, ll.lng]).addTo(exportMap);
+              if (popupContent) marker.bindPopup(popupContent);
+            }
+          });
+
+          exportMap.invalidateSize();
+          await new Promise(resolve => setTimeout(resolve, 900));
+          await waitForMapTiles(clone);
+        }
+
+        return await html2canvas(clone, {
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#0b1118",
+          scale: Math.min(window.devicePixelRatio || 2, 2),
+          logging: false
+        });
+      } finally {
+        clone.remove();
+      }
+    }
+
+    async function exportAsImage() {
+      try {
+        setExportStatus("Building image...");
+        const canvas = await captureAppCanvas();
+        const stamp = sanitizeFileStamp(state.patrolEnd || Date.now());
+        downloadDataUrl(`patrol-report_${stamp}.png`, canvas.toDataURL("image/png"));
+        setExportStatus("Image export complete.");
+      } catch (error) {
+        console.error(error);
+        setExportStatus("Image export failed.");
+        alert("Unable to export image.");
+      }
+    }
+
+    async function exportAsPDF() {
+      try {
+        setExportStatus("Building PDF...");
+        const canvas = await captureAppCanvas();
+        const imageData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+
+        const pdfWidth = canvas.width * 0.75;
+        const pdfHeight = canvas.height * 0.75;
+        const pdf = new jsPDF({
+          orientation: pdfWidth >= pdfHeight ? "l" : "p",
+          unit: "pt",
+          format: [pdfWidth, pdfHeight]
+        });
+
+        pdf.addImage(imageData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        const stamp = sanitizeFileStamp(state.patrolEnd || Date.now());
+        pdf.save(`patrol-report_${stamp}.pdf`);
+        setExportStatus("PDF export complete.");
+      } catch (error) {
+        console.error(error);
+        setExportStatus("PDF export failed.");
+        alert("Unable to export PDF.");
+      }
+    }
+
+    async function copySummaryToClipboard() {
+      const summary = buildPatrolSummary();
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(summary);
+          setExportStatus("Summary copied to clipboard.");
+          return true;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = summary;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+        setExportStatus("Summary copied to clipboard.");
+        return true;
+      } catch (error) {
+        console.error(error);
+        setExportStatus("Clipboard copy failed.");
+        return false;
+      }
+    }
+
+    async function exportAsTextMessage() {
+      const summary = buildPatrolSummary();
+
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "Patrol Summary",
+            text: summary
+          });
+          setExportStatus("Summary opened in share sheet.");
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+
+      const copied = await copySummaryToClipboard();
+
+      try {
+        const smsLink = `sms:?&body=${encodeURIComponent(summary)}`;
+        window.location.href = smsLink;
+        setExportStatus(copied
+          ? "Summary copied and SMS draft opened."
+          : "SMS draft opened.");
+      } catch (error) {
+        console.error(error);
+        setExportStatus(copied
+          ? "Summary copied to clipboard."
+          : "Unable to open SMS app.");
+      }
+    }
+
+    locateBtn.addEventListener("click", locateMe);
+    startBtn.addEventListener("click", startPatrol);
+    pauseBtn.addEventListener("click", pausePatrol);
+    resumeBtn.addEventListener("click", resumePatrol);
+    markBtn.addEventListener("click", markLocation);
+    endBtn.addEventListener("click", endPatrol);
+    alertLevel.addEventListener("change", updateAlertSelect);
+
+    exportImageBtn.addEventListener("click", exportAsImage);
+    exportTextBtn.addEventListener("click", exportAsTextMessage);
+    exportPdfBtn.addEventListener("click", exportAsPDF);
+    copySummaryBtn.addEventListener("click", copySummaryToClipboard);
+    closeExportModalBtn.addEventListener("click", closeExportModal);
+
+    exportModalBackdrop.addEventListener("click", (event) => {
+      if (event.target === exportModalBackdrop) {
+        closeExportModal();
+      }
     });
 
-    document.getElementById("resumeBtn").addEventListener("click", () => {
-
-      statusDot.className = "dot active";
-      statusText.textContent = "Tracking";
-
-      addLog("Patrol resumed");
-
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && exportModalBackdrop.classList.contains("show")) {
+        closeExportModal();
+      }
     });
 
-    document.getElementById("markBtn").addEventListener("click", () => {
-
-      addLog("Manual marker placed");
-
-    });
-
-    document.getElementById("endBtn").addEventListener("click", () => {
-
-      statusDot.className = "dot stopped";
-      statusText.textContent = "Ended";
-
-      addLog("Patrol ended");
-
-    });
-
+    initMap();
+    updateStatus("ready");
+    updateButtons();
+    updateAlertSelect();
+    updateCompassUI();
+    updateMetrics();
     addLog("System ready");
 
+    // GPS, wake lock, compass, and browser fetches require HTTPS or localhost on most phones.
+    // If OpenSky blocks browser requests in your environment, the badge will show "Airspace unavailable".
   </script>
-
 </body>
 </html>
