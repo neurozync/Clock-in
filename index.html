@@ -121,7 +121,7 @@ body{
   display:none;
 }
 
-/* SMALLER GPS ARROW */
+/* SMALL GPS ARROW */
 
 .gps-arrow{
   width:0;
@@ -152,6 +152,41 @@ body{
   background:#fff;
 
   border-radius:50%;
+}
+
+/* ANIMATED TRAIL */
+
+@keyframes trailPulse{
+
+  0%{
+    filter:
+      drop-shadow(0 0 3px #00ff88)
+      drop-shadow(0 0 6px rgba(0,255,136,.5));
+
+    opacity:.75;
+  }
+
+  50%{
+    filter:
+      drop-shadow(0 0 8px #00ff88)
+      drop-shadow(0 0 16px rgba(0,255,136,.9));
+
+    opacity:1;
+  }
+
+  100%{
+    filter:
+      drop-shadow(0 0 3px #00ff88)
+      drop-shadow(0 0 6px rgba(0,255,136,.5));
+
+    opacity:.75;
+  }
+}
+
+.animated-trail{
+
+  animation:
+    trailPulse 1.8s infinite ease-in-out;
 }
 
 </style>
@@ -284,7 +319,7 @@ L.tileLayer(
   }
 ).addTo(map);
 
-/* THINNER ROUTE LINE */
+/* ANIMATED ROUTE TRAIL */
 
 patrolLine = L.polyline([],{
 
@@ -294,11 +329,13 @@ patrolLine = L.polyline([],{
 
   opacity:1,
 
-  smoothFactor:1.2
+  smoothFactor:1.2,
+
+  className:"animated-trail"
 
 }).addTo(map);
 
-/* SMALLER GPS ARROW */
+/* GPS ARROW */
 
 const arrowIcon = L.divIcon({
 
@@ -351,10 +388,6 @@ function startPatrol(){
 
     return;
   }
-
-  /*
-    MAXIMUM WEB GPS SETTINGS
-  */
 
   watchId =
     navigator.geolocation.watchPosition(
@@ -410,10 +443,6 @@ async function updatePosition(position){
   const rawPoint =
     [rawLat,rawLng];
 
-  /*
-    HIGH-SPEED ACCURACY LOGIC
-  */
-
   const movingFast =
     speedMph > 15;
 
@@ -432,10 +461,6 @@ async function updatePosition(position){
 
     return;
   }
-
-  /*
-    REJECT IMPOSSIBLE GPS JUMPS
-  */
 
   if(
     lastAcceptedPosition &&
@@ -459,10 +484,6 @@ async function updatePosition(position){
       return;
     }
 
-    /*
-      IGNORE MICRO DRIFT
-    */
-
     if(
       jumpDistance < 2 &&
       speedMph < 2
@@ -471,10 +492,6 @@ async function updatePosition(position){
       return;
     }
   }
-
-  /*
-    DYNAMIC GPS SMOOTHING
-  */
 
   let finalPoint = rawPoint;
 
@@ -564,10 +581,6 @@ async function updatePosition(position){
       totalDistance *
       0.000621371
     ).toFixed(2) + " MI";
-
-  /*
-    LIMIT ADDRESS LOOKUPS
-  */
 
   if(
     now - lastGeocodeTime >
