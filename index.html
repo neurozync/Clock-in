@@ -7,11 +7,7 @@
 
 <title>Tactical Patrol Tracker</title>
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet/dist/leaflet.css"
-/>
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
@@ -35,21 +31,14 @@ body{
 }
 
 .top-bar{
-
   position:absolute;
   top:0;
   left:0;
-
   width:100%;
-
   z-index:9999;
-
   background:rgba(0,0,0,.72);
-
   backdrop-filter:blur(12px);
-
   border-bottom:1px solid rgba(0,255,170,.2);
-
   padding:10px;
 }
 
@@ -77,15 +66,10 @@ body{
 }
 
 .stat-card{
-
   background:rgba(15,20,30,.95);
-
   border:1px solid rgba(0,255,170,.2);
-
   border-radius:14px;
-
   text-align:center;
-
   padding:10px;
 }
 
@@ -101,34 +85,23 @@ body{
 }
 
 .bottom-controls{
-
   position:absolute;
   bottom:20px;
   left:0;
-
   width:100%;
-
   z-index:9999;
-
   display:flex;
   justify-content:center;
   gap:12px;
 }
 
 .btn{
-
   border:none;
-
   padding:15px 22px;
-
   border-radius:14px;
-
   font-weight:bold;
-
   color:#fff;
-
   cursor:pointer;
-
   box-shadow:0 8px 24px rgba(0,0,0,.5);
 }
 
@@ -148,55 +121,28 @@ body{
   display:none;
 }
 
-.compass-ring{
-
-  width:92px;
-  height:92px;
-
-  border-radius:50%;
-
-  border:3px solid #00ff88;
-
-  position:relative;
-
-  background:rgba(0,0,0,.45);
-
-  box-shadow:
-    0 0 20px rgba(0,255,136,.65),
-    inset 0 0 18px rgba(0,255,136,.2);
-}
-
-.compass-arrow{
-
-  position:absolute;
-
-  top:12px;
-  left:41px;
-
+/* SMALL GPS ARROW */
+.gps-arrow{
   width:0;
   height:0;
-
-  border-left:5px solid transparent;
-  border-right:5px solid transparent;
-  border-bottom:28px solid #00ff88;
-
-  transform-origin:center 30px;
-
-  filter:drop-shadow(0 0 10px #00ff88);
+  border-left:11px solid transparent;
+  border-right:11px solid transparent;
+  border-bottom:34px solid #00ff88;
+  filter:
+    drop-shadow(0 0 8px #00ff88)
+    drop-shadow(0 0 16px rgba(0,255,136,.6));
+  transform-origin:50% 65%;
 }
 
-.north-text{
-
+.gps-arrow::after{
+  content:"";
   position:absolute;
-
-  top:3px;
-  left:38px;
-
-  color:#fff;
-
-  font-size:10px;
-
-  font-weight:bold;
+  left:-5px;
+  top:22px;
+  width:10px;
+  height:10px;
+  background:#fff;
+  border-radius:50%;
 }
 
 </style>
@@ -208,15 +154,8 @@ body{
 <div class="top-bar">
 
   <div class="address-box">
-
-    <div class="label">
-      EXACT ADDRESS
-    </div>
-
-    <div id="address">
-      Waiting for GPS...
-    </div>
-
+    <div class="label">EXACT ADDRESS</div>
+    <div id="address">Waiting for GPS...</div>
   </div>
 
   <div class="stats-grid">
@@ -275,10 +214,6 @@ body{
 
 <script>
 
-//
-// VARIABLES
-//
-
 let map;
 let marker;
 let watchId;
@@ -287,57 +222,31 @@ let patrolPath = [];
 let patrolLine;
 
 let totalDistance = 0;
-
 let followMode = true;
 
 let lastAcceptedPosition = null;
+let lastAcceptedTime = null;
+let smoothedPosition = null;
 
-//
-// DOM
-//
+let lastGeocodeTime = 0;
 
-const startBtn =
-  document.getElementById("startBtn");
+const startBtn = document.getElementById("startBtn");
+const endBtn = document.getElementById("endBtn");
+const followBtn = document.getElementById("followBtn");
 
-const endBtn =
-  document.getElementById("endBtn");
-
-const followBtn =
-  document.getElementById("followBtn");
-
-const startTimeEl =
-  document.getElementById("startTime");
-
-const endTimeEl =
-  document.getElementById("endTime");
-
-const speedEl =
-  document.getElementById("speed");
-
-const accuracyEl =
-  document.getElementById("accuracy");
-
-const headingEl =
-  document.getElementById("heading");
-
-const distanceEl =
-  document.getElementById("distance");
-
-const addressEl =
-  document.getElementById("address");
-
-//
-// MAP
-//
+const startTimeEl = document.getElementById("startTime");
+const endTimeEl = document.getElementById("endTime");
+const speedEl = document.getElementById("speed");
+const accuracyEl = document.getElementById("accuracy");
+const headingEl = document.getElementById("heading");
+const distanceEl = document.getElementById("distance");
+const addressEl = document.getElementById("address");
 
 map = L.map("map",{
   zoomControl:true
 }).setView([33.4484,-112.0740],19);
 
-//
-// SATELLITE TILES
-//
-
+/* SATELLITE MAP */
 L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {
@@ -345,78 +254,33 @@ L.tileLayer(
   }
 ).addTo(map);
 
-//
-// ROUTE TRAIL
-//
-
+/* ENHANCED ROUTE TRAIL */
 patrolLine = L.polyline([],{
-
   color:"#00ff88",
-
   weight:5,
-
   opacity:1,
-
-  smoothFactor:1
-
+  smoothFactor:1.2
 }).addTo(map);
 
-//
-// COMPASS ICON
-//
-
-const compassIcon = L.divIcon({
-
+/* SMALL GPS ARROW ICON */
+const arrowIcon = L.divIcon({
   className:"",
-
-  html:`
-    <div class="compass-ring">
-      <div class="north-text">N</div>
-      <div class="compass-arrow" id="compassArrow"></div>
-    </div>
-  `,
-
-  iconSize:[92,92],
-
-  iconAnchor:[46,46]
+  html:`<div class="gps-arrow" id="gpsArrow"></div>`,
+  iconSize:[34,44],
+  iconAnchor:[17,28]
 });
 
-//
-// BUTTONS
-//
-
-startBtn.addEventListener(
-  "click",
-  startPatrol
-);
-
-endBtn.addEventListener(
-  "click",
-  endPatrol
-);
-
-followBtn.addEventListener(
-  "click",
-  toggleFollow
-);
-
-//
-// FOLLOW MODE
-//
+startBtn.addEventListener("click",startPatrol);
+endBtn.addEventListener("click",endPatrol);
+followBtn.addEventListener("click",toggleFollow);
 
 function toggleFollow(){
 
   followMode = !followMode;
 
   followBtn.innerText =
-    followMode
-      ? "FOLLOW ON"
-      : "FOLLOW OFF";
+    followMode ? "FOLLOW ON" : "FOLLOW OFF";
 }
-
-//
-// START PATROL
-//
 
 function startPatrol(){
 
@@ -426,42 +290,22 @@ function startPatrol(){
     new Date().toLocaleTimeString();
 
   if(!navigator.geolocation){
-
     alert("GPS NOT SUPPORTED");
-
     return;
   }
 
-  //
-  // MAXIMUM GPS SETTINGS
-  //
-
-  watchId =
-    navigator.geolocation.watchPosition(
-
-      updatePosition,
-
-      locationError,
-
-      {
-        enableHighAccuracy:true,
-
-        maximumAge:0,
-
-        timeout:3000
-      }
-    );
-
-  //
-  // REAL DEVICE COMPASS
-  //
+  watchId = navigator.geolocation.watchPosition(
+    updatePosition,
+    locationError,
+    {
+      enableHighAccuracy:true,
+      maximumAge:0,
+      timeout:3000
+    }
+  );
 
   setupCompass();
 }
-
-//
-// END PATROL
-//
 
 function endPatrol(){
 
@@ -469,125 +313,116 @@ function endPatrol(){
     new Date().toLocaleTimeString();
 
   if(watchId){
-
     navigator.geolocation.clearWatch(watchId);
   }
-
-  //
-  // STOPS FOLLOWING
-  // KEEPS BREADCRUMBS
-  //
 
   followMode = false;
 }
 
-//
-// POSITION UPDATE
-//
-
 async function updatePosition(position){
 
-  const lat =
-    position.coords.latitude;
+  const rawLat = position.coords.latitude;
+  const rawLng = position.coords.longitude;
+  const accuracy = position.coords.accuracy;
+  const speedMps = position.coords.speed || 0;
+  const speedMph = speedMps * 2.23694;
 
-  const lng =
-    position.coords.longitude;
+  const now = Date.now();
+  const rawPoint = [rawLat,rawLng];
 
-  const accuracy =
-    position.coords.accuracy;
+  /*
+    GPS DRIFT CONTROL:
+    - Rejects garbage fixes.
+    - Allows faster movement.
+    - Smooths jitter.
+    - Keeps breadcrumbs cleaner.
+  */
 
-  const speed =
-    position.coords.speed || 0;
+  const movingFast = speedMph > 15;
+  const movingVeryFast = speedMph > 60;
 
-  const speedMph =
-    speed * 2.23694;
+  let maxAllowedAccuracy = 20;
 
-  //
-  // GPS DRIFT FILTER
-  //
+  if(movingFast) maxAllowedAccuracy = 35;
+  if(movingVeryFast) maxAllowedAccuracy = 60;
 
-  //
-  // IGNORE BAD GPS ACCURACY
-  //
-
-  if(accuracy > 18){
-
+  if(accuracy > maxAllowedAccuracy){
     return;
   }
 
-  const point = [lat,lng];
+  if(lastAcceptedPosition && lastAcceptedTime){
 
-  //
-  // DISTANCE FILTER
-  //
+    const seconds =
+      (now - lastAcceptedTime) / 1000;
 
-  //
-  // Prevents GPS jitter from
-  // drawing fake movement
-  //
+    const jumpDistance =
+      map.distance(lastAcceptedPosition,rawPoint);
 
-  if(lastAcceptedPosition){
+    const calculatedSpeedMph =
+      (jumpDistance / seconds) * 2.23694;
 
-    const driftDistance =
-      map.distance(
-        lastAcceptedPosition,
-        point
-      );
-
-    //
-    // Ignore tiny fake jumps
-    //
-
-    if(driftDistance < 2){
-
+    if(calculatedSpeedMph > 700){
       return;
     }
 
-    totalDistance += driftDistance;
+    if(jumpDistance < 2 && speedMph < 2){
+      return;
+    }
   }
 
-  lastAcceptedPosition = point;
+  let finalPoint = rawPoint;
 
-  patrolPath.push(point);
+  if(smoothedPosition){
 
-  //
-  // ROUTE LINE
-  //
+    let alpha = 0.35;
 
-  patrolLine.setLatLngs(
-    patrolPath
-  );
+    if(speedMph > 10) alpha = 0.55;
+    if(speedMph > 35) alpha = 0.75;
+    if(speedMph > 80) alpha = 0.9;
 
-  //
-  // MARKER
-  //
+    const smoothLat =
+      smoothedPosition[0] +
+      alpha * (rawLat - smoothedPosition[0]);
+
+    const smoothLng =
+      smoothedPosition[1] +
+      alpha * (rawLng - smoothedPosition[1]);
+
+    finalPoint = [smoothLat,smoothLng];
+
+  }
+
+  smoothedPosition = finalPoint;
+
+  if(lastAcceptedPosition){
+
+    totalDistance +=
+      map.distance(lastAcceptedPosition,finalPoint);
+  }
+
+  lastAcceptedPosition = finalPoint;
+  lastAcceptedTime = now;
+
+  patrolPath.push(finalPoint);
+  patrolLine.setLatLngs(patrolPath);
 
   if(!marker){
 
-    marker =
-      L.marker(point,{
-        icon:compassIcon
-      }).addTo(map);
+    marker = L.marker(finalPoint,{
+      icon:arrowIcon
+    }).addTo(map);
 
   }else{
 
-    marker.setLatLng(point);
+    marker.setLatLng(finalPoint);
   }
-
-  //
-  // FOLLOW MODE
-  //
 
   if(followMode){
 
-    map.panTo(point,{
+    map.panTo(finalPoint,{
       animate:true
     });
   }
-
-  //
-  // UI
-  //
 
   speedEl.innerText =
     speedMph.toFixed(1) + " MPH";
@@ -596,132 +431,132 @@ async function updatePosition(position){
     accuracy.toFixed(1) + " m";
 
   distanceEl.innerText =
-    (
-      totalDistance *
-      0.000621371
-    ).toFixed(2) + " MI";
+    (totalDistance * 0.000621371)
+    .toFixed(2) + " MI";
 
-  //
-  // EXACT ADDRESS LOOKUP
-  //
+  /*
+    Do not hammer the address API.
+    It updates every 10 seconds.
+  */
 
-  reverseGeocode(lat,lng);
+  if(now - lastGeocodeTime > 10000){
+
+    lastGeocodeTime = now;
+
+    reverseGeocode(rawLat,rawLng);
+  }
 }
-
-//
-// BETTER EXACT ADDRESS
-//
 
 async function reverseGeocode(lat,lng){
 
+  addressEl.innerText = "Checking address...";
+
   try{
 
-    const response =
-      await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`
-      );
+    /*
+      More exact street-level lookup.
+      Nominatim usually gives house number + road
+      if the GPS point and map data support it.
+    */
 
-    const data =
-      await response.json();
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+
+    const response = await fetch(url,{
+      headers:{
+        "Accept":"application/json"
+      }
+    });
+
+    const data = await response.json();
+
+    const a = data.address || {};
+
+    const exactAddress = [
+      a.house_number,
+      a.road,
+      a.neighbourhood || a.suburb,
+      a.city || a.town || a.village,
+      a.state,
+      a.postcode
+    ].filter(Boolean).join(", ");
 
     addressEl.innerText =
+      exactAddress ||
       data.display_name ||
-      "Address unavailable";
+      "Exact address unavailable";
 
   }catch(err){
 
     addressEl.innerText =
-      "Unable to fetch address";
+      "Exact address unavailable";
   }
 }
-
-//
-// REAL COMPASS
-//
 
 function setupCompass(){
 
-  if(
-    typeof DeviceOrientationEvent !==
-    "undefined"
-  ){
+  if(typeof DeviceOrientationEvent === "undefined"){
+    return;
+  }
 
-    //
-    // IOS PERMISSION
-    //
+  if(typeof DeviceOrientationEvent.requestPermission === "function"){
 
-    if(
-      typeof DeviceOrientationEvent
-      .requestPermission ===
-      "function"
-    ){
+    DeviceOrientationEvent.requestPermission()
+    .then(permissionState=>{
 
-      DeviceOrientationEvent
-      .requestPermission()
-      .then(permissionState=>{
+      if(permissionState === "granted"){
 
-        if(permissionState==="granted"){
+        window.addEventListener(
+          "deviceorientation",
+          updateCompass,
+          true
+        );
+      }
+    });
 
-          window.addEventListener(
-            "deviceorientation",
-            updateCompass
-          );
-        }
-      });
+  }else{
 
-    }else{
+    window.addEventListener(
+      "deviceorientationabsolute",
+      updateCompass,
+      true
+    );
 
-      window.addEventListener(
-        "deviceorientationabsolute",
-        updateCompass
-      );
-
-      window.addEventListener(
-        "deviceorientation",
-        updateCompass
-      );
-    }
+    window.addEventListener(
+      "deviceorientation",
+      updateCompass,
+      true
+    );
   }
 }
-
-//
-// LIVE COMPASS ROTATION
-//
 
 function updateCompass(event){
 
   let heading;
 
-  //
-  // IOS
-  //
-
   if(event.webkitCompassHeading){
 
-    heading =
-      event.webkitCompassHeading;
+    heading = event.webkitCompassHeading;
+
+  }else if(event.absolute && event.alpha !== null){
+
+    heading = 360 - event.alpha;
+
+  }else if(event.alpha !== null){
+
+    heading = 360 - event.alpha;
 
   }else{
-
-    heading =
-      360 - event.alpha;
-  }
-
-  if(heading == null){
 
     return;
   }
 
-  heading =
-    Math.round(heading);
+  heading = Math.round(heading);
 
-  headingEl.innerText =
-    heading + "°";
+  headingEl.innerText = heading + "°";
 
   const arrow =
-    document.getElementById(
-      "compassArrow"
-    );
+    document.getElementById("gpsArrow");
 
   if(arrow){
 
@@ -730,17 +565,11 @@ function updateCompass(event){
   }
 }
 
-//
-// GPS ERRORS
-//
-
 function locationError(err){
 
   console.error(err);
 
-  alert(
-    "GPS ERROR: " + err.message
-  );
+  alert("GPS ERROR: " + err.message);
 }
 
 </script>
