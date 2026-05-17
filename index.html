@@ -121,27 +121,36 @@ body{
   display:none;
 }
 
-/* SMALL GPS ARROW */
+/* SMALLER GPS ARROW */
+
 .gps-arrow{
   width:0;
   height:0;
-  border-left:11px solid transparent;
-  border-right:11px solid transparent;
-  border-bottom:34px solid #00ff88;
+
+  border-left:7px solid transparent;
+  border-right:7px solid transparent;
+  border-bottom:22px solid #00ff88;
+
   filter:
     drop-shadow(0 0 8px #00ff88)
     drop-shadow(0 0 16px rgba(0,255,136,.6));
+
   transform-origin:50% 65%;
 }
 
 .gps-arrow::after{
   content:"";
+
   position:absolute;
-  left:-5px;
-  top:22px;
-  width:10px;
-  height:10px;
+
+  left:-3px;
+  top:14px;
+
+  width:6px;
+  height:6px;
+
   background:#fff;
+
   border-radius:50%;
 }
 
@@ -222,31 +231,52 @@ let patrolPath = [];
 let patrolLine;
 
 let totalDistance = 0;
+
 let followMode = true;
 
 let lastAcceptedPosition = null;
 let lastAcceptedTime = null;
+
 let smoothedPosition = null;
 
 let lastGeocodeTime = 0;
 
-const startBtn = document.getElementById("startBtn");
-const endBtn = document.getElementById("endBtn");
-const followBtn = document.getElementById("followBtn");
+const startBtn =
+  document.getElementById("startBtn");
 
-const startTimeEl = document.getElementById("startTime");
-const endTimeEl = document.getElementById("endTime");
-const speedEl = document.getElementById("speed");
-const accuracyEl = document.getElementById("accuracy");
-const headingEl = document.getElementById("heading");
-const distanceEl = document.getElementById("distance");
-const addressEl = document.getElementById("address");
+const endBtn =
+  document.getElementById("endBtn");
+
+const followBtn =
+  document.getElementById("followBtn");
+
+const startTimeEl =
+  document.getElementById("startTime");
+
+const endTimeEl =
+  document.getElementById("endTime");
+
+const speedEl =
+  document.getElementById("speed");
+
+const accuracyEl =
+  document.getElementById("accuracy");
+
+const headingEl =
+  document.getElementById("heading");
+
+const distanceEl =
+  document.getElementById("distance");
+
+const addressEl =
+  document.getElementById("address");
 
 map = L.map("map",{
   zoomControl:true
 }).setView([33.4484,-112.0740],19);
 
 /* SATELLITE MAP */
+
 L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   {
@@ -254,32 +284,58 @@ L.tileLayer(
   }
 ).addTo(map);
 
-/* ENHANCED ROUTE TRAIL */
+/* THINNER ROUTE LINE */
+
 patrolLine = L.polyline([],{
+
   color:"#00ff88",
-  weight:5,
+
+  weight:3,
+
   opacity:1,
+
   smoothFactor:1.2
+
 }).addTo(map);
 
-/* SMALL GPS ARROW ICON */
+/* SMALLER GPS ARROW */
+
 const arrowIcon = L.divIcon({
+
   className:"",
-  html:`<div class="gps-arrow" id="gpsArrow"></div>`,
-  iconSize:[34,44],
-  iconAnchor:[17,28]
+
+  html:`
+    <div class="gps-arrow" id="gpsArrow"></div>
+  `,
+
+  iconSize:[24,30],
+
+  iconAnchor:[12,18]
 });
 
-startBtn.addEventListener("click",startPatrol);
-endBtn.addEventListener("click",endPatrol);
-followBtn.addEventListener("click",toggleFollow);
+startBtn.addEventListener(
+  "click",
+  startPatrol
+);
+
+endBtn.addEventListener(
+  "click",
+  endPatrol
+);
+
+followBtn.addEventListener(
+  "click",
+  toggleFollow
+);
 
 function toggleFollow(){
 
   followMode = !followMode;
 
   followBtn.innerText =
-    followMode ? "FOLLOW ON" : "FOLLOW OFF";
+    followMode
+      ? "FOLLOW ON"
+      : "FOLLOW OFF";
 }
 
 function startPatrol(){
@@ -290,19 +346,31 @@ function startPatrol(){
     new Date().toLocaleTimeString();
 
   if(!navigator.geolocation){
+
     alert("GPS NOT SUPPORTED");
+
     return;
   }
 
-  watchId = navigator.geolocation.watchPosition(
-    updatePosition,
-    locationError,
-    {
-      enableHighAccuracy:true,
-      maximumAge:0,
-      timeout:3000
-    }
-  );
+  /*
+    MAXIMUM WEB GPS SETTINGS
+  */
+
+  watchId =
+    navigator.geolocation.watchPosition(
+
+      updatePosition,
+
+      locationError,
+
+      {
+        enableHighAccuracy:true,
+
+        maximumAge:0,
+
+        timeout:2500
+      }
+    );
 
   setupCompass();
 }
@@ -313,6 +381,7 @@ function endPatrol(){
     new Date().toLocaleTimeString();
 
   if(watchId){
+
     navigator.geolocation.clearWatch(watchId);
   }
 
@@ -321,54 +390,91 @@ function endPatrol(){
 
 async function updatePosition(position){
 
-  const rawLat = position.coords.latitude;
-  const rawLng = position.coords.longitude;
-  const accuracy = position.coords.accuracy;
-  const speedMps = position.coords.speed || 0;
-  const speedMph = speedMps * 2.23694;
+  const rawLat =
+    position.coords.latitude;
+
+  const rawLng =
+    position.coords.longitude;
+
+  const accuracy =
+    position.coords.accuracy;
+
+  const speedMps =
+    position.coords.speed || 0;
+
+  const speedMph =
+    speedMps * 2.23694;
 
   const now = Date.now();
-  const rawPoint = [rawLat,rawLng];
+
+  const rawPoint =
+    [rawLat,rawLng];
 
   /*
-    GPS DRIFT CONTROL:
-    - Rejects garbage fixes.
-    - Allows faster movement.
-    - Smooths jitter.
-    - Keeps breadcrumbs cleaner.
+    HIGH-SPEED ACCURACY LOGIC
   */
 
-  const movingFast = speedMph > 15;
-  const movingVeryFast = speedMph > 60;
+  const movingFast =
+    speedMph > 15;
+
+  const movingVeryFast =
+    speedMph > 60;
 
   let maxAllowedAccuracy = 20;
 
-  if(movingFast) maxAllowedAccuracy = 35;
-  if(movingVeryFast) maxAllowedAccuracy = 60;
+  if(movingFast)
+    maxAllowedAccuracy = 35;
+
+  if(movingVeryFast)
+    maxAllowedAccuracy = 60;
 
   if(accuracy > maxAllowedAccuracy){
+
     return;
   }
 
-  if(lastAcceptedPosition && lastAcceptedTime){
+  /*
+    REJECT IMPOSSIBLE GPS JUMPS
+  */
+
+  if(
+    lastAcceptedPosition &&
+    lastAcceptedTime
+  ){
 
     const seconds =
       (now - lastAcceptedTime) / 1000;
 
     const jumpDistance =
-      map.distance(lastAcceptedPosition,rawPoint);
+      map.distance(
+        lastAcceptedPosition,
+        rawPoint
+      );
 
     const calculatedSpeedMph =
       (jumpDistance / seconds) * 2.23694;
 
     if(calculatedSpeedMph > 700){
+
       return;
     }
 
-    if(jumpDistance < 2 && speedMph < 2){
+    /*
+      IGNORE MICRO DRIFT
+    */
+
+    if(
+      jumpDistance < 2 &&
+      speedMph < 2
+    ){
+
       return;
     }
   }
+
+  /*
+    DYNAMIC GPS SMOOTHING
+  */
 
   let finalPoint = rawPoint;
 
@@ -376,20 +482,33 @@ async function updatePosition(position){
 
     let alpha = 0.35;
 
-    if(speedMph > 10) alpha = 0.55;
-    if(speedMph > 35) alpha = 0.75;
-    if(speedMph > 80) alpha = 0.9;
+    if(speedMph > 10)
+      alpha = 0.55;
+
+    if(speedMph > 35)
+      alpha = 0.75;
+
+    if(speedMph > 80)
+      alpha = 0.9;
 
     const smoothLat =
       smoothedPosition[0] +
-      alpha * (rawLat - smoothedPosition[0]);
+      alpha *
+      (
+        rawLat -
+        smoothedPosition[0]
+      );
 
     const smoothLng =
       smoothedPosition[1] +
-      alpha * (rawLng - smoothedPosition[1]);
+      alpha *
+      (
+        rawLng -
+        smoothedPosition[1]
+      );
 
-    finalPoint = [smoothLat,smoothLng];
-
+    finalPoint =
+      [smoothLat,smoothLng];
   }
 
   smoothedPosition = finalPoint;
@@ -397,20 +516,30 @@ async function updatePosition(position){
   if(lastAcceptedPosition){
 
     totalDistance +=
-      map.distance(lastAcceptedPosition,finalPoint);
+      map.distance(
+        lastAcceptedPosition,
+        finalPoint
+      );
   }
 
-  lastAcceptedPosition = finalPoint;
-  lastAcceptedTime = now;
+  lastAcceptedPosition =
+    finalPoint;
+
+  lastAcceptedTime =
+    now;
 
   patrolPath.push(finalPoint);
-  patrolLine.setLatLngs(patrolPath);
+
+  patrolLine.setLatLngs(
+    patrolPath
+  );
 
   if(!marker){
 
-    marker = L.marker(finalPoint,{
-      icon:arrowIcon
-    }).addTo(map);
+    marker =
+      L.marker(finalPoint,{
+        icon:arrowIcon
+      }).addTo(map);
 
   }else{
 
@@ -431,55 +560,72 @@ async function updatePosition(position){
     accuracy.toFixed(1) + " m";
 
   distanceEl.innerText =
-    (totalDistance * 0.000621371)
-    .toFixed(2) + " MI";
+    (
+      totalDistance *
+      0.000621371
+    ).toFixed(2) + " MI";
 
   /*
-    Do not hammer the address API.
-    It updates every 10 seconds.
+    LIMIT ADDRESS LOOKUPS
   */
 
-  if(now - lastGeocodeTime > 10000){
+  if(
+    now - lastGeocodeTime >
+    10000
+  ){
 
     lastGeocodeTime = now;
 
-    reverseGeocode(rawLat,rawLng);
+    reverseGeocode(
+      rawLat,
+      rawLng
+    );
   }
 }
 
 async function reverseGeocode(lat,lng){
 
-  addressEl.innerText = "Checking address...";
+  addressEl.innerText =
+    "Checking address...";
 
   try{
-
-    /*
-      More exact street-level lookup.
-      Nominatim usually gives house number + road
-      if the GPS point and map data support it.
-    */
 
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
 
-    const response = await fetch(url,{
-      headers:{
-        "Accept":"application/json"
-      }
-    });
+    const response =
+      await fetch(url,{
+        headers:{
+          "Accept":"application/json"
+        }
+      });
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
-    const a = data.address || {};
+    const a =
+      data.address || {};
 
     const exactAddress = [
+
       a.house_number,
+
       a.road,
-      a.neighbourhood || a.suburb,
-      a.city || a.town || a.village,
+
+      a.neighbourhood ||
+      a.suburb,
+
+      a.city ||
+      a.town ||
+      a.village,
+
       a.state,
+
       a.postcode
-    ].filter(Boolean).join(", ");
+
+    ]
+    .filter(Boolean)
+    .join(", ");
 
     addressEl.innerText =
       exactAddress ||
@@ -495,16 +641,29 @@ async function reverseGeocode(lat,lng){
 
 function setupCompass(){
 
-  if(typeof DeviceOrientationEvent === "undefined"){
+  if(
+    typeof DeviceOrientationEvent ===
+    "undefined"
+  ){
+
     return;
   }
 
-  if(typeof DeviceOrientationEvent.requestPermission === "function"){
+  if(
+    typeof DeviceOrientationEvent
+    .requestPermission ===
+    "function"
+  ){
 
-    DeviceOrientationEvent.requestPermission()
+    DeviceOrientationEvent
+    .requestPermission()
+
     .then(permissionState=>{
 
-      if(permissionState === "granted"){
+      if(
+        permissionState ===
+        "granted"
+      ){
 
         window.addEventListener(
           "deviceorientation",
@@ -536,27 +695,39 @@ function updateCompass(event){
 
   if(event.webkitCompassHeading){
 
-    heading = event.webkitCompassHeading;
+    heading =
+      event.webkitCompassHeading;
 
-  }else if(event.absolute && event.alpha !== null){
+  }else if(
+    event.absolute &&
+    event.alpha !== null
+  ){
 
-    heading = 360 - event.alpha;
+    heading =
+      360 - event.alpha;
 
-  }else if(event.alpha !== null){
+  }else if(
+    event.alpha !== null
+  ){
 
-    heading = 360 - event.alpha;
+    heading =
+      360 - event.alpha;
 
   }else{
 
     return;
   }
 
-  heading = Math.round(heading);
+  heading =
+    Math.round(heading);
 
-  headingEl.innerText = heading + "°";
+  headingEl.innerText =
+    heading + "°";
 
   const arrow =
-    document.getElementById("gpsArrow");
+    document.getElementById(
+      "gpsArrow"
+    );
 
   if(arrow){
 
@@ -569,7 +740,9 @@ function locationError(err){
 
   console.error(err);
 
-  alert("GPS ERROR: " + err.message);
+  alert(
+    "GPS ERROR: " + err.message
+  );
 }
 
 </script>
