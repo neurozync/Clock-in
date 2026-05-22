@@ -1,764 +1,890 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tactical Patrol Tracker</title>
 
-<title>Tactical Patrol Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
 
-<style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family:Arial,sans-serif;
-}
+    body {
+      margin: 0;
+      background: #101820;
+      color: white;
+    }
 
-body{
-  overflow:hidden;
-  background:#05080d;
-  color:#fff;
-}
+    .app {
+      max-width: 480px;
+      margin: auto;
+      padding: 12px;
+    }
 
-#map{
-  width:100%;
-  height:100vh;
-}
+    .header {
+      text-align: center;
+      padding: 14px;
+      background: #1f2933;
+      border-radius: 14px;
+      margin-bottom: 12px;
+      border: 1px solid #334155;
+    }
 
-.top-bar{
-  position:absolute;
-  top:0;
-  left:0;
-  width:100%;
-  z-index:9999;
-  background:rgba(0,0,0,.72);
-  backdrop-filter:blur(12px);
-  border-bottom:1px solid rgba(0,255,170,.2);
-  padding:10px;
-}
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+      letter-spacing: .3px;
+    }
 
-.address-box{
-  margin-bottom:10px;
-}
+    .status {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #9ae6b4;
+    }
 
-.label{
-  font-size:10px;
-  color:#00ff9d;
-  letter-spacing:1px;
-  margin-bottom:4px;
-}
+    #map {
+      height: 360px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid #334155;
+      margin-bottom: 12px;
+    }
 
-#address{
-  font-size:13px;
-  font-weight:bold;
-  line-height:1.4;
-}
+    .panel {
+      background: #1f2933;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
 
-.stats-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-}
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
 
-.stat-card{
-  background:rgba(15,20,30,.95);
-  border:1px solid rgba(0,255,170,.2);
-  border-radius:14px;
-  text-align:center;
-  padding:10px;
-}
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+    }
 
-.stat-label{
-  font-size:10px;
-  color:#9ca3af;
-  margin-bottom:5px;
-}
+    .start {
+      background: #16a34a;
+      color: white;
+    }
 
-.stat-value{
-  font-size:13px;
-  font-weight:bold;
-}
+    .end {
+      background: #dc2626;
+      color: white;
+    }
 
-.bottom-controls{
-  position:absolute;
-  bottom:20px;
-  left:0;
-  width:100%;
-  z-index:9999;
-  display:flex;
-  justify-content:center;
-  gap:12px;
-}
+    .secondary {
+      background: #334155;
+      color: white;
+    }
 
-.btn{
-  border:none;
-  padding:15px 22px;
-  border-radius:14px;
-  font-weight:bold;
-  color:#fff;
-  cursor:pointer;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-}
+    .warning {
+      background: #f59e0b;
+      color: #111;
+    }
 
-.start-btn{
-  background:#16a34a;
-}
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid #334155;
+      font-size: 14px;
+    }
 
-.end-btn{
-  background:#dc2626;
-}
+    .data-row:last-child {
+      border-bottom: none;
+    }
 
-.follow-btn{
-  background:#2563eb;
-}
+    .label {
+      color: #cbd5e1;
+    }
 
-.leaflet-control-attribution{
-  display:none;
-}
+    .value {
+      font-weight: bold;
+      text-align: right;
+    }
 
-/* SMALL GPS ARROW */
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: white;
+      padding: 10px;
+      font-size: 14px;
+    }
 
-.gps-arrow{
-  width:0;
-  height:0;
+    .photo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
 
-  border-left:7px solid transparent;
-  border-right:7px solid transparent;
-  border-bottom:22px solid #00ff88;
+    .photo-box {
+      border: 1px dashed #64748b;
+      border-radius: 12px;
+      min-height: 140px;
+      padding: 8px;
+      background: #0f172a;
+      text-align: center;
+    }
 
-  filter:
-    drop-shadow(0 0 8px #00ff88)
-    drop-shadow(0 0 16px rgba(0,255,136,.6));
+    .photo-box img {
+      width: 100%;
+      max-height: 130px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 6px;
+    }
 
-  transform-origin:50% 65%;
-}
+    .photo-box input {
+      width: 100%;
+      font-size: 12px;
+      color: white;
+    }
 
-.gps-arrow::after{
-  content:"";
+    .checkpoint-list {
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+    }
 
-  position:absolute;
+    .footer-note {
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+      padding-bottom: 20px;
+    }
 
-  left:-3px;
-  top:14px;
+    @media print {
 
-  width:6px;
-  height:6px;
+      button,
+      input[type="file"] {
+        display: none;
+      }
 
-  background:#fff;
+      body {
+        background: white;
+        color: black;
+      }
 
-  border-radius:50%;
-}
+      .panel,
+      .header {
+        background: white;
+        color: black;
+        border: 1px solid #999;
+      }
+    }
 
-/* ANIMATED TRAIL */
-
-@keyframes trailPulse{
-
-  0%{
-    filter:
-      drop-shadow(0 0 3px #00ff88)
-      drop-shadow(0 0 6px rgba(0,255,136,.5));
-
-    opacity:.75;
-  }
-
-  50%{
-    filter:
-      drop-shadow(0 0 8px #00ff88)
-      drop-shadow(0 0 16px rgba(0,255,136,.9));
-
-    opacity:1;
-  }
-
-  100%{
-    filter:
-      drop-shadow(0 0 3px #00ff88)
-      drop-shadow(0 0 6px rgba(0,255,136,.5));
-
-    opacity:.75;
-  }
-}
-
-.animated-trail{
-
-  animation:
-    trailPulse 1.8s infinite ease-in-out;
-}
-
-</style>
-
+  </style>
 </head>
 
 <body>
 
-<div class="top-bar">
+  <div class="app" id="captureArea">
 
-  <div class="address-box">
-    <div class="label">EXACT ADDRESS</div>
-    <div id="address">Waiting for GPS...</div>
+    <div class="header">
+      <h1 id="addressHeader">
+        Waiting for GPS address...
+      </h1>
+
+      <div class="status" id="gpsStatus">
+        GPS standing by...
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="panel">
+
+      <div class="grid">
+
+        <button class="start" onclick="startPatrol()">
+          START PATROL
+        </button>
+
+        <button class="end" onclick="endPatrol()">
+          END PATROL
+        </button>
+
+        <button class="secondary" onclick="addCheckpoint()">
+          MARK CHECKPOINT
+        </button>
+
+        <button class="warning" onclick="takeScreenshot()">
+          SCREENSHOT
+        </button>
+
+      </div>
+
+    </div>
+
+    <div class="panel">
+
+      <div class="data-row">
+        <span class="label">Start Time</span>
+        <span class="value" id="startTime">Not started</span>
+      </div>
+
+      <div class="data-row">
+        <span class="label">End Time</span>
+        <span class="value" id="endTime">Not ended</span>
+      </div>
+
+      <div class="data-row">
+        <span class="label">Current Location</span>
+        <span class="value" id="coords">Waiting...</span>
+      </div>
+
+      <div class="data-row">
+        <span class="label">GPS Accuracy</span>
+        <span class="value" id="accuracy">Waiting...</span>
+      </div>
+
+      <div class="data-row">
+        <span class="label">Speed</span>
+        <span class="value" id="speed">Waiting...</span>
+      </div>
+
+      <div class="data-row">
+        <span class="label">Breadcrumb Points</span>
+        <span class="value" id="pointCount">0</span>
+      </div>
+
+    </div>
+
+    <div class="panel">
+      <strong>Patrol Notes / Activity Log</strong>
+
+      <textarea id="notes"
+        placeholder="Example: Checked north gate, vehicle row, stairwell, loading dock..."></textarea>
+    </div>
+
+    <div class="panel">
+
+      <strong>Photo Evidence / Checked Items</strong>
+
+      <div class="photo-grid" id="photoGrid"></div>
+
+    </div>
+
+    <div class="panel">
+
+      <strong>Checkpoints</strong>
+
+      <div class="checkpoint-list" id="checkpointList">
+        No checkpoints marked.
+      </div>
+
+    </div>
+
+    <div class="footer-note">
+      Screenshot this full screen for patrol submission.
+    </div>
+
   </div>
 
-  <div class="stats-grid">
+  <script>
 
-    <div class="stat-card">
-      <div class="stat-label">START</div>
-      <div id="startTime" class="stat-value">--:--</div>
-    </div>
+    let map;
+    let watchId = null;
 
-    <div class="stat-card">
-      <div class="stat-label">END</div>
-      <div id="endTime" class="stat-value">--:--</div>
-    </div>
+    let patrolActive = false;
 
-    <div class="stat-card">
-      <div class="stat-label">SPEED</div>
-      <div id="speed" class="stat-value">0 MPH</div>
-    </div>
+    let breadcrumbPoints = [];
+    let breadcrumbLine = null;
 
-    <div class="stat-card">
-      <div class="stat-label">GPS ACCURACY</div>
-      <div id="accuracy" class="stat-value">--</div>
-    </div>
+    let currentMarker = null;
+    let currentHeading = 0;
 
-    <div class="stat-card">
-      <div class="stat-label">HEADING</div>
-      <div id="heading" class="stat-value">--</div>
-    </div>
+    let accuracyCircle = null;
 
-    <div class="stat-card">
-      <div class="stat-label">DISTANCE</div>
-      <div id="distance" class="stat-value">0 MI</div>
-    </div>
+    let checkpoints = [];
 
-  </div>
+    let lastGoodPosition = null;
+    let lastAddressLookupTime = 0;
 
-</div>
+    function formatTime(date = new Date()) {
 
-<div id="map"></div>
-
-<div class="bottom-controls">
-
-  <button id="startBtn" class="btn start-btn">
-    LOCATE ME
-  </button>
-
-  <button id="followBtn" class="btn follow-btn">
-    FOLLOW ON
-  </button>
-
-  <button id="endBtn" class="btn end-btn">
-    END PATROL
-  </button>
-
-</div>
-
-<script>
-
-let map;
-let marker;
-let watchId;
-
-let patrolPath = [];
-let patrolLine;
-
-let totalDistance = 0;
-
-let followMode = true;
-
-let lastAcceptedPosition = null;
-let lastAcceptedTime = null;
-
-let smoothedPosition = null;
-
-let lastGeocodeTime = 0;
-
-const startBtn =
-  document.getElementById("startBtn");
-
-const endBtn =
-  document.getElementById("endBtn");
-
-const followBtn =
-  document.getElementById("followBtn");
-
-const startTimeEl =
-  document.getElementById("startTime");
-
-const endTimeEl =
-  document.getElementById("endTime");
-
-const speedEl =
-  document.getElementById("speed");
-
-const accuracyEl =
-  document.getElementById("accuracy");
-
-const headingEl =
-  document.getElementById("heading");
-
-const distanceEl =
-  document.getElementById("distance");
-
-const addressEl =
-  document.getElementById("address");
-
-map = L.map("map",{
-  zoomControl:true
-}).setView([33.4484,-112.0740],19);
-
-/* SATELLITE MAP */
-
-L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {
-    maxZoom:22
-  }
-).addTo(map);
-
-/* ANIMATED ROUTE TRAIL */
-
-patrolLine = L.polyline([],{
-
-  color:"#00ff88",
-
-  weight:3,
-
-  opacity:1,
-
-  smoothFactor:1.2,
-
-  className:"animated-trail"
-
-}).addTo(map);
-
-/* GPS ARROW */
-
-const arrowIcon = L.divIcon({
-
-  className:"",
-
-  html:`
-    <div class="gps-arrow" id="gpsArrow"></div>
-  `,
-
-  iconSize:[24,30],
-
-  iconAnchor:[12,18]
-});
-
-startBtn.addEventListener(
-  "click",
-  startPatrol
-);
-
-endBtn.addEventListener(
-  "click",
-  endPatrol
-);
-
-followBtn.addEventListener(
-  "click",
-  toggleFollow
-);
-
-function toggleFollow(){
-
-  followMode = !followMode;
-
-  followBtn.innerText =
-    followMode
-      ? "FOLLOW ON"
-      : "FOLLOW OFF";
-}
-
-function startPatrol(){
-
-  followMode = true;
-
-  startTimeEl.innerText =
-    new Date().toLocaleTimeString();
-
-  if(!navigator.geolocation){
-
-    alert("GPS NOT SUPPORTED");
-
-    return;
-  }
-
-  watchId =
-    navigator.geolocation.watchPosition(
-
-      updatePosition,
-
-      locationError,
-
-      {
-        enableHighAccuracy:true,
-
-        maximumAge:0,
-
-        timeout:2500
-      }
-    );
-
-  setupCompass();
-}
-
-function endPatrol(){
-
-  endTimeEl.innerText =
-    new Date().toLocaleTimeString();
-
-  if(watchId){
-
-    navigator.geolocation.clearWatch(watchId);
-  }
-
-  followMode = false;
-}
-
-async function updatePosition(position){
-
-  const rawLat =
-    position.coords.latitude;
-
-  const rawLng =
-    position.coords.longitude;
-
-  const accuracy =
-    position.coords.accuracy;
-
-  const speedMps =
-    position.coords.speed || 0;
-
-  const speedMph =
-    speedMps * 2.23694;
-
-  const now = Date.now();
-
-  const rawPoint =
-    [rawLat,rawLng];
-
-  const movingFast =
-    speedMph > 15;
-
-  const movingVeryFast =
-    speedMph > 60;
-
-  let maxAllowedAccuracy = 20;
-
-  if(movingFast)
-    maxAllowedAccuracy = 35;
-
-  if(movingVeryFast)
-    maxAllowedAccuracy = 60;
-
-  if(accuracy > maxAllowedAccuracy){
-
-    return;
-  }
-
-  if(
-    lastAcceptedPosition &&
-    lastAcceptedTime
-  ){
-
-    const seconds =
-      (now - lastAcceptedTime) / 1000;
-
-    const jumpDistance =
-      map.distance(
-        lastAcceptedPosition,
-        rawPoint
-      );
-
-    const calculatedSpeedMph =
-      (jumpDistance / seconds) * 2.23694;
-
-    if(calculatedSpeedMph > 700){
-
-      return;
+      return date.toLocaleString([], {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
     }
 
-    if(
-      jumpDistance < 2 &&
-      speedMph < 2
-    ){
+    function initMap() {
 
-      return;
-    }
-  }
+      map = L.map("map").setView([33.4484, -112.0740], 18);
 
-  let finalPoint = rawPoint;
-
-  if(smoothedPosition){
-
-    let alpha = 0.35;
-
-    if(speedMph > 10)
-      alpha = 0.55;
-
-    if(speedMph > 35)
-      alpha = 0.75;
-
-    if(speedMph > 80)
-      alpha = 0.9;
-
-    const smoothLat =
-      smoothedPosition[0] +
-      alpha *
-      (
-        rawLat -
-        smoothedPosition[0]
-      );
-
-    const smoothLng =
-      smoothedPosition[1] +
-      alpha *
-      (
-        rawLng -
-        smoothedPosition[1]
-      );
-
-    finalPoint =
-      [smoothLat,smoothLng];
-  }
-
-  smoothedPosition = finalPoint;
-
-  if(lastAcceptedPosition){
-
-    totalDistance +=
-      map.distance(
-        lastAcceptedPosition,
-        finalPoint
-      );
-  }
-
-  lastAcceptedPosition =
-    finalPoint;
-
-  lastAcceptedTime =
-    now;
-
-  patrolPath.push(finalPoint);
-
-  patrolLine.setLatLngs(
-    patrolPath
-  );
-
-  if(!marker){
-
-    marker =
-      L.marker(finalPoint,{
-        icon:arrowIcon
-      }).addTo(map);
-
-  }else{
-
-    marker.setLatLng(finalPoint);
-  }
-
-  if(followMode){
-
-    map.panTo(finalPoint,{
-      animate:true
-    });
-  }
-
-  speedEl.innerText =
-    speedMph.toFixed(1) + " MPH";
-
-  accuracyEl.innerText =
-    accuracy.toFixed(1) + " m";
-
-  distanceEl.innerText =
-    (
-      totalDistance *
-      0.000621371
-    ).toFixed(2) + " MI";
-
-  if(
-    now - lastGeocodeTime >
-    10000
-  ){
-
-    lastGeocodeTime = now;
-
-    reverseGeocode(
-      rawLat,
-      rawLng
-    );
-  }
-}
-
-async function reverseGeocode(lat,lng){
-
-  addressEl.innerText =
-    "Checking address...";
-
-  try{
-
-    const url =
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-
-    const response =
-      await fetch(url,{
-        headers:{
-          "Accept":"application/json"
+      L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxZoom: 22,
+          attribution: "Tiles © Esri"
         }
+      ).addTo(map);
+
+      breadcrumbLine = L.polyline([], {
+        weight: 5
+      }).addTo(map);
+    }
+
+    function startPatrol() {
+
+      if (!navigator.geolocation) {
+
+        alert("GPS is not supported on this device/browser.");
+        return;
+      }
+
+      patrolActive = true;
+
+      breadcrumbPoints = [];
+      checkpoints = [];
+      lastGoodPosition = null;
+
+      document.getElementById("startTime").textContent =
+        formatTime();
+
+      document.getElementById("endTime").textContent =
+        "In progress";
+
+      document.getElementById("checkpointList").textContent =
+        "No checkpoints marked.";
+
+      document.getElementById("gpsStatus").textContent =
+        "GPS tracking active...";
+
+      document.getElementById("pointCount").textContent =
+        "0";
+
+      if (breadcrumbLine) {
+        breadcrumbLine.setLatLngs([]);
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        updatePosition,
+        gpsError,
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 5000
+        }
+      );
+    }
+
+    function endPatrol() {
+
+      patrolActive = false;
+
+      document.getElementById("endTime").textContent =
+        formatTime();
+
+      document.getElementById("gpsStatus").textContent =
+        "Patrol ended.";
+
+      if (watchId !== null) {
+
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+    }
+
+    function updatePosition(position) {
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      const accuracy = position.coords.accuracy;
+
+      const speed = position.coords.speed || 0;
+
+      const heading = position.coords.heading;
+
+      const timestamp = position.timestamp;
+
+      const point = [lat, lng];
+
+      /*
+        GPS QUALITY FILTERING
+      */
+
+      if (accuracy > 120) {
+
+        document.getElementById("gpsStatus").textContent =
+          "Weak GPS signal — waiting for stabilization...";
+
+        return;
+      }
+
+      if (lastGoodPosition) {
+
+        const distance = getDistanceMeters(
+          lastGoodPosition.lat,
+          lastGoodPosition.lng,
+          lat,
+          lng
+        );
+
+        const timeSeconds =
+          (timestamp - lastGoodPosition.timestamp) / 1000;
+
+        const calculatedSpeed =
+          timeSeconds > 0 ? distance / timeSeconds : 0;
+
+        /*
+          Reject impossible jumps
+        */
+
+        if (distance > 250 && calculatedSpeed > 85) {
+          return;
+        }
+
+        /*
+          Reject inaccurate spikes while stationary
+        */
+
+        if (speed < 1 &&
+            distance > 25 &&
+            accuracy > 40) {
+
+          return;
+        }
+      }
+
+      lastGoodPosition = {
+        lat,
+        lng,
+        timestamp
+      };
+
+      /*
+        DIRECTION
+      */
+
+      if (heading !== null && !isNaN(heading)) {
+        currentHeading = heading;
+      }
+
+      document.getElementById("coords").textContent =
+        lat.toFixed(6) + ", " + lng.toFixed(6);
+
+      document.getElementById("accuracy").textContent =
+        "± " + Math.round(accuracy) + " meters";
+
+      document.getElementById("speed").textContent =
+        (speed * 2.23694).toFixed(1) + " mph";
+
+      document.getElementById("gpsStatus").textContent =
+        "GPS locked — tactical tracking active.";
+
+      /*
+        BREADCRUMBS
+      */
+
+      if (patrolActive) {
+
+        const shouldAddPoint =
+          breadcrumbPoints.length === 0 ||
+
+          getDistanceMeters(
+            breadcrumbPoints[breadcrumbPoints.length - 1][0],
+            breadcrumbPoints[breadcrumbPoints.length - 1][1],
+            lat,
+            lng
+          ) > 2;
+
+        if (shouldAddPoint) {
+
+          breadcrumbPoints.push(point);
+
+          breadcrumbLine.setLatLngs(breadcrumbPoints);
+
+          document.getElementById("pointCount").textContent =
+            breadcrumbPoints.length;
+        }
+      }
+
+      /*
+        TACTICAL TRIANGLE
+      */
+
+      const triangleHtml = `
+        <div style="
+          width:0;
+          height:0;
+          border-left:8px solid transparent;
+          border-right:8px solid transparent;
+          border-bottom:16px solid #00ff66;
+          transform: rotate(${currentHeading}deg);
+          filter: drop-shadow(0 0 4px #00ff66);
+        "></div>
+      `;
+
+      const tacticalIcon = L.divIcon({
+        html: triangleHtml,
+        className: '',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
       });
 
-    const data =
-      await response.json();
+      if (!currentMarker) {
 
-    const a =
-      data.address || {};
+        currentMarker = L.marker(point, {
+          icon: tacticalIcon
+        }).addTo(map);
 
-    const exactAddress = [
+      } else {
 
-      a.house_number,
-
-      a.road,
-
-      a.neighbourhood ||
-      a.suburb,
-
-      a.city ||
-      a.town ||
-      a.village,
-
-      a.state,
-
-      a.postcode
-
-    ]
-    .filter(Boolean)
-    .join(", ");
-
-    addressEl.innerText =
-      exactAddress ||
-      data.display_name ||
-      "Exact address unavailable";
-
-  }catch(err){
-
-    addressEl.innerText =
-      "Exact address unavailable";
-  }
-}
-
-function setupCompass(){
-
-  if(
-    typeof DeviceOrientationEvent ===
-    "undefined"
-  ){
-
-    return;
-  }
-
-  if(
-    typeof DeviceOrientationEvent
-    .requestPermission ===
-    "function"
-  ){
-
-    DeviceOrientationEvent
-    .requestPermission()
-
-    .then(permissionState=>{
-
-      if(
-        permissionState ===
-        "granted"
-      ){
-
-        window.addEventListener(
-          "deviceorientation",
-          updateCompass,
-          true
-        );
+        currentMarker.setLatLng(point);
+        currentMarker.setIcon(tacticalIcon);
       }
-    });
 
-  }else{
+      /*
+        ACCURACY RING
+      */
 
-    window.addEventListener(
-      "deviceorientationabsolute",
-      updateCompass,
-      true
-    );
+      if (!accuracyCircle) {
 
-    window.addEventListener(
-      "deviceorientation",
-      updateCompass,
-      true
-    );
-  }
-}
+        accuracyCircle = L.circle(point, {
+          radius: accuracy,
+          weight: 1,
+          fillOpacity: 0.10
+        }).addTo(map);
 
-function updateCompass(event){
+      } else {
 
-  let heading;
+        accuracyCircle.setLatLng(point);
+        accuracyCircle.setRadius(accuracy);
+      }
 
-  if(event.webkitCompassHeading){
+      /*
+        CAMERA FOLLOW
+      */
 
-    heading =
-      event.webkitCompassHeading;
+      map.setView(point, 19, {
+        animate: true
+      });
 
-  }else if(
-    event.absolute &&
-    event.alpha !== null
-  ){
+      /*
+        ADDRESS LOOKUP
+      */
 
-    heading =
-      360 - event.alpha;
+      const now = Date.now();
 
-  }else if(
-    event.alpha !== null
-  ){
+      if (now - lastAddressLookupTime > 5000) {
 
-    heading =
-      360 - event.alpha;
+        lastAddressLookupTime = now;
 
-  }else{
+        reverseGeocode(lat, lng);
+      }
+    }
 
-    return;
-  }
+    function reverseGeocode(lat, lng) {
 
-  heading =
-    Math.round(heading);
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=19&addressdetails=1`
+      )
 
-  headingEl.innerText =
-    heading + "°";
+      .then(response => response.json())
 
-  const arrow =
-    document.getElementById(
-      "gpsArrow"
-    );
+      .then(data => {
 
-  if(arrow){
+        let finalText = "";
 
-    arrow.style.transform =
-      `rotate(${heading}deg)`;
-  }
-}
+        const name =
+          data.name ||
+          data.namedetails?.name ||
+          "";
 
-function locationError(err){
+        const road =
+          data.address?.road ||
+          "";
 
-  console.error(err);
+        const houseNumber =
+          data.address?.house_number ||
+          "";
 
-  alert(
-    "GPS ERROR: " + err.message
-  );
-}
+        const city =
+          data.address?.city ||
+          data.address?.town ||
+          data.address?.village ||
+          "";
 
-</script>
+        const state =
+          data.address?.state ||
+          "";
+
+        /*
+          PRIORITY:
+          1. Exact business/building
+          2. Exact address
+          3. Street
+          4. Coordinates
+        */
+
+        if (
+          name &&
+          !name.includes(road) &&
+          name.length < 60
+        ) {
+
+          finalText =
+            `${name} — ${houseNumber} ${road}, ${city}, ${state}`;
+
+        }
+
+        else if (houseNumber && road) {
+
+          finalText =
+            `${houseNumber} ${road}, ${city}, ${state}`;
+        }
+
+        else if (road) {
+
+          finalText =
+            `${road}, ${city}, ${state}`;
+        }
+
+        else {
+
+          finalText =
+            `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+
+        document.getElementById("addressHeader").textContent =
+          finalText;
+      })
+
+      .catch(() => {
+
+        document.getElementById("addressHeader").textContent =
+          `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      });
+    }
+
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+
+      const R = 6371000;
+
+      const toRad =
+        value => value * Math.PI / 180;
+
+      const dLat =
+        toRad(lat2 - lat1);
+
+      const dLon =
+        toRad(lon2 - lon1);
+
+      const a =
+        Math.sin(dLat / 2) *
+        Math.sin(dLat / 2) +
+
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+      const c =
+        2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c;
+    }
+
+    function gpsError(error) {
+
+      let msg = "GPS error.";
+
+      if (error.code === 1)
+        msg = "GPS permission denied.";
+
+      if (error.code === 2)
+        msg = "GPS position unavailable.";
+
+      if (error.code === 3)
+        msg = "GPS request timed out.";
+
+      document.getElementById("gpsStatus").textContent =
+        msg;
+
+      alert(msg);
+    }
+
+    function addCheckpoint() {
+
+      if (!currentMarker) {
+
+        alert("No GPS location available yet.");
+        return;
+      }
+
+      const location =
+        currentMarker.getLatLng();
+
+      const time =
+        formatTime();
+
+      checkpoints.push({
+        time,
+        lat: location.lat,
+        lng: location.lng
+      });
+
+      L.marker([
+        location.lat,
+        location.lng
+      ])
+
+      .addTo(map)
+
+      .bindPopup(
+        "Checkpoint<br>" + time
+      );
+
+      renderCheckpoints();
+    }
+
+    function renderCheckpoints() {
+
+      const box =
+        document.getElementById("checkpointList");
+
+      if (checkpoints.length === 0) {
+
+        box.textContent =
+          "No checkpoints marked.";
+
+        return;
+      }
+
+      box.innerHTML =
+        checkpoints.map((c, i) => `
+
+        <div>
+          <strong>#${i + 1}</strong> — ${c.time}<br>
+          ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}
+        </div>
+
+        <br>
+
+      `).join("");
+    }
+
+    function buildPhotoSlots() {
+
+      const grid =
+        document.getElementById("photoGrid");
+
+      for (let i = 1; i <= 6; i++) {
+
+        const box =
+          document.createElement("div");
+
+        box.className =
+          "photo-box";
+
+        box.innerHTML = `
+          <strong>Photo ${i}</strong>
+
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onchange="previewPhoto(event, ${i})">
+
+          <img
+            id="photo${i}"
+            style="display:none;" />
+        `;
+
+        grid.appendChild(box);
+      }
+    }
+
+    function previewPhoto(event, number) {
+
+      const file =
+        event.target.files[0];
+
+      if (!file) return;
+
+      const reader =
+        new FileReader();
+
+      reader.onload = function(e) {
+
+        const img =
+          document.getElementById("photo" + number);
+
+        img.src =
+          e.target.result;
+
+        img.style.display =
+          "block";
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function takeScreenshot() {
+
+      html2canvas(
+        document.getElementById("captureArea"),
+        {
+          useCORS: true,
+          scale: 2
+        }
+      )
+
+      .then(canvas => {
+
+        const link =
+          document.createElement("a");
+
+        link.download =
+          "patrol-report.png";
+
+        link.href =
+          canvas.toDataURL("image/png");
+
+        link.click();
+      });
+    }
+
+    initMap();
+
+    buildPhotoSlots();
+
+  </script>
 
 </body>
 </html>
